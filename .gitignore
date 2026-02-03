@@ -1,0 +1,274 @@
+############################################
+# OS GENERATED FILES
+############################################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+############################################
+# GENERAL TEMP & LOG FILES
+############################################
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.old
+*.orig
+*.pid
+*.seed
+*.pid.lock
+*.cache
+
+############################################
+# ENVIRONMENT & SECRETS
+############################################
+.env
+.env.*
+!.env.example
+secrets.yml
+secrets.json
+*.pem
+*.key
+*.crt
+*.pfx
+*.keystore
+credentials.json
+
+############################################
+# PYTHON
+############################################
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+virtualenv/
+pip-wheel-metadata/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+pip-log.txt
+
+# Python test & coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+nosetests.xml
+test-results/
+pytestdebug.log
+
+############################################
+# NODE.JS / JAVASCRIPT / TYPESCRIPT
+############################################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.pnpm-store
+.yarn
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.esbuild/
+.vite/
+
+############################################
+# JAVA / JVM (JAVA, KOTLIN, SCALA)
+############################################
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+dependency-reduced-pom.xml
+
+# Gradle
+.gradle/
+build/
+gradle-app.setting
+!gradle-wrapper.jar
+
+############################################
+# C / C++ / OBJECT FILES
+############################################
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.out
+*.app
+
+############################################
+# GO
+############################################
+*.exe
+*.test
+*.prof
+bin/
+
+############################################
+# RUST
+############################################
+target/
+Cargo.lock
+
+############################################
+# PHP
+############################################
+vendor/
+composer.lock
+.phpunit.result.cache
+
+############################################
+# DOTNET / C#
+############################################
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+############################################
+# RUBY
+############################################
+*.gem
+.bundle/
+vendor/bundle/
+log/
+
+############################################
+# DATABASE FILES
+############################################
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql
+*.bak
+
+############################################
+# DOCKER
+############################################
+.docker/
+docker-compose.override.yml
+*.tar
+*.tgz
+
+############################################
+# KUBERNETES / TERRAFORM
+############################################
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+terraform.tfvars
+
+############################################
+# IDE & EDITORS
+############################################
+# VS CODE
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# INTELLIJ / PYCHARM / ANDROID STUDIO
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ECLIPSE
+.project
+.classpath
+.settings/
+
+# SUBLIME
+*.sublime-workspace
+*.sublime-project
+
+# VIM
+*.swp
+*.swo
+*.swn
+*.vim
+
+############################################
+# JUPYTER / DATA SCIENCE
+############################################
+.ipynb_checkpoints/
+*.h5
+*.pkl
+*.joblib
+*.npy
+*.npz
+
+############################################
+# DOCUMENTATION / EXPORTS
+############################################
+*.pdf
+*.docx
+*.pptx
+*.xlsx
+
+############################################
+# ARCHIVES
+############################################
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+############################################
+# TEST OUTPUTS
+############################################
+test-output/
+test-results/
+reports/
+coverage/
+
+############################################
+# MISC
+############################################
+*.lock
+*.retry
+*.stackdump
