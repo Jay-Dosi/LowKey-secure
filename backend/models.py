@@ -11,7 +11,7 @@ class User(Base):
     hashed_password = Column(String)
     role = Column(String) # 'admin', 'club', 'student'
     
-    credentials = relationship("Credential", back_populates="owner")
+    credentials = relationship("Credential", back_populates="owner", foreign_keys="[Credential.user_id]")
     requests_created = relationship("AccessRequest", back_populates="creator")
     access_logs = relationship("AccessLog", back_populates="user")
 
