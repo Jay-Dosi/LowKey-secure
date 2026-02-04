@@ -2,6 +2,13 @@ from sqlalchemy import Column, Integer, String, Boolean, JSON, ForeignKey, DateT
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
+import time
+from zoneinfo import ZoneInfo
+
+def get_ist_now():
+    utc_timestamp = time.time()
+    utc_dt = datetime.fromtimestamp(utc_timestamp, tz=ZoneInfo("UTC"))
+    return utc_dt.astimezone(ZoneInfo("Asia/Kolkata"))
 
 class User(Base):
     __tablename__ = "users"
@@ -23,7 +30,7 @@ class Credential(Base):
     data = Column(JSON) # The signed payload
     signature = Column(String)
     issuer_id = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_ist_now)
 
     owner = relationship("User", back_populates="credentials", foreign_keys=[user_id])
 
@@ -36,7 +43,7 @@ class AccessRequest(Base):
     requested_attributes = Column(JSON) # List of strings
     risk_level = Column(String) # 'HIGH', 'LOW'
     risk_message = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_ist_now)
 
     creator = relationship("User", back_populates="requests_created")
     logs = relationship("AccessLog", back_populates="request")
@@ -48,7 +55,7 @@ class AccessLog(Base):
     request_id = Column(Integer, ForeignKey("access_requests.id"))
     user_id = Column(Integer, ForeignKey("users.id")) # In a real anon system, this might be hashed/blinded
     proof_signature = Column(String)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=get_ist_now)
 
     request = relationship("AccessRequest", back_populates="logs")
     user = relationship("User", back_populates="access_logs")
