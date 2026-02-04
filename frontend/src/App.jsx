@@ -1,47 +1,90 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import AdminDashboard from './pages/AdminDashboard';
-import ClubDashboard from './pages/ClubDashboard';
-import StudentDashboard from './pages/StudentDashboard';
-import RequestDetails from './pages/RequestDetails';
-import { ShieldCheck } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import AdminDashboard from './pages/AdminDashboard'
+import ClubDashboard from './pages/ClubDashboard'
+import StudentDashboard from './pages/StudentDashboard'
+import RequestDetails from './pages/RequestDetails'
+import { AuthProvider, useAuth } from '@/context/AuthContext'
+import { Button } from '@/components/ui/button'
+import { ShieldCheck, LogOut, Loader2 } from 'lucide-react'
 
-const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  if (!token) return <Navigate to="/login" />;
-  return children;
-};
+function PrivateRoute({ children, allowedRoles }) {
+  const { isAuthenticated, user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  // Check role if allowedRoles is specified
+  if (allowedRoles && !allowedRoles.includes(user?.role)) {
+    // Redirect to appropriate dashboard based on role
+    const redirectPath = user?.role === 'admin' ? '/admin' : user?.role === 'club' ? '/club' : '/student'
+    return <Navigate to={redirectPath} replace />
+  }
+
+  return children
+}
+
+function AppContent() {
+  const { isAuthenticated, user, logout } = useAuth()
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
+        <nav className="container mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
+          <Link to="/" className="flex items-center gap-2">
+            <ShieldCheck className="h-7 w-7 text-green-400" aria-hidden="true" />
+            <span className="text-lg font-bold tracking-tight">
+              LOWKEY<span className="text-green-400">SECURE</span>
+            </span>
+          </Link>
+
+          {isAuthenticated && (
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {user?.username} <span className="capitalize text-green-400">({user?.role})</span>
+              </span>
+              <Button variant="ghost" size="sm" onClick={logout}>
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Logout</span>
+              </Button>
+            </div>
+          )}
+        </nav>
+      </header>
+
+      <main className="container mx-auto max-w-5xl px-4 py-8">
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/admin" element={<PrivateRoute allowedRoles={['admin']}><AdminDashboard /></PrivateRoute>} />
+          <Route path="/club" element={<PrivateRoute allowedRoles={['club']}><ClubDashboard /></PrivateRoute>} />
+          <Route path="/student" element={<PrivateRoute allowedRoles={['student']}><StudentDashboard /></PrivateRoute>} />
+          <Route path="/student/request/:id" element={<PrivateRoute allowedRoles={['student']}><RequestDetails /></PrivateRoute>} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </main>
+    </div>
+  )
+}
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-green-500/30">
-        <header className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
-          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => window.location.href = '/'}>
-            <ShieldCheck className="w-8 h-8 text-green-400" />
-            <span className="text-xl font-bold tracking-tighter text-white">LOWKEY<span className="text-green-400">SECURE</span></span>
-          </div>
-          {localStorage.getItem('token') && (
-            <button onClick={() => { localStorage.clear(); window.location.href = '/login'; }} className="text-sm text-slate-400 hover:text-white transition-colors">Logout</button>
-          )}
-        </header>
-
-        <main className="container mx-auto p-4 max-w-4xl">
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
-            <Route path="/club" element={<PrivateRoute><ClubDashboard /></PrivateRoute>} />
-            <Route path="/student" element={<PrivateRoute><StudentDashboard /></PrivateRoute>} />
-            <Route path="/student/request/:id" element={<PrivateRoute><RequestDetails /></PrivateRoute>} />
-            <Route path="/" element={<Navigate to="/login" />} />
-          </Routes>
-        </main>
-      </div>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </Router>
-  );
+  )
 }
 
-export default App;
+export default App

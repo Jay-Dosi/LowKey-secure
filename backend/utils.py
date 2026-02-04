@@ -2,13 +2,46 @@ from jose import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 import datetime
+import os
 
-# Generate keys on fresh start for the MVP University Issuer
-private_key = rsa.generate_private_key(
-    public_exponent=65537,
-    key_size=2048,
-)
-public_key = private_key.public_key()
+# Persist keys to files so they survive server restarts
+PRIVATE_KEY_FILE = "private_key.pem"
+PUBLIC_KEY_FILE = "public_key.pem"
+
+def load_or_generate_keys():
+    """Load existing keys or generate new ones if they don't exist"""
+    if os.path.exists(PRIVATE_KEY_FILE) and os.path.exists(PUBLIC_KEY_FILE):
+        # Load existing keys
+        with open(PRIVATE_KEY_FILE, "rb") as f:
+            priv_key = serialization.load_pem_private_key(f.read(), password=None)
+        with open(PUBLIC_KEY_FILE, "rb") as f:
+            pub_key = serialization.load_pem_public_key(f.read())
+        print("✅ Loaded existing RSA keys")
+        return priv_key, pub_key
+    else:
+        # Generate new keys
+        priv_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+        )
+        pub_key = priv_key.public_key()
+        
+        # Save keys to files
+        with open(PRIVATE_KEY_FILE, "wb") as f:
+            f.write(priv_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()
+            ))
+        with open(PUBLIC_KEY_FILE, "wb") as f:
+            f.write(pub_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            ))
+        print("🔐 Generated and saved new RSA keys")
+        return priv_key, pub_key
+
+private_key, public_key = load_or_generate_keys()
 
 def sign_credential(payload: dict):
     pem_private = private_key.private_bytes(
