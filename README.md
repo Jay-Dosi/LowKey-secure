@@ -1,19 +1,24 @@
-# Lowkey Secure MVP
+# Lowkey Secure - Privacy-First Event Access System
 
-Verified Identity & Privacy-Preserving Access System for Hackathons.
+**Consent-First Identity Fabric** for campus events with strict RBAC, event approval workflows, and anonymous attendance tracking.
 
 ## Overview
 
-Lowkey Secure is a "Consent-First Identity Fabric" that allows students to prove eligibility for campus activities (e.g., "I am a CS Major") without revealing sensitive PII like real names or email addresses unless explicitly necessary.
+Lowkey Secure enables students to prove eligibility for campus activities without revealing sensitive PII. The system implements a three-tier workflow:
+- **Leads** create events and request specific attributes
+- **Admins** review and approve/reject events based on privacy risk
+- **Students** consent to approved events and access them anonymously
 
 ### Key Features
-- **Privacy Guardian Engine**: Automatically flags requests asking for High-Risk PII.
-- **Verifiable Credentials (Simulated)**: Cryptographically signed student credentials.
-- **Anonymous Access**: Club leads see valid proofs, not names.
+- **Event Approval Pipeline**: Admin review queue with mandatory comments for HIGH risk events
+- **Privacy Guardian Engine**: Automatic risk analysis (HIGH/LOW) based on requested attributes
+- **Verifiable Credentials**: Cryptographically signed student credentials (RSA-256)
+- **Anonymous Access Logging**: Students tracked by anonymized tokens, not PII
+- **Year-Based Filtering**: Events shown only to eligible student years
 
 ## Tech Stack
-- **Backend**: Python, FastAPI, SQLite, SQLAlchemy, Python-Jose (Crypto).
-- **Frontend**: React (Vite), Tailwind CSS, Lucide-React.
+- **Backend**: Python, FastAPI, SQLite, SQLAlchemy, Python-Jose (Crypto)
+- **Frontend**: React (Vite), Tailwind CSS, Lucide-React
 
 ## Prerequisites
 - Python 3.8+
@@ -23,79 +28,167 @@ Lowkey Secure is a "Consent-First Identity Fabric" that allows students to prove
 
 ### 1. Backend Setup
 
-1.  Navigate to the backend folder:
-    ```bash
-    cd lowkey-secure\backend
-    ```
+```bash
+cd lowkey-secure\backend
 
-2.  **Create a Virtual Environment** (Recommended):
-    ```bash
-    python -m venv venv
-    ```
+# Create and activate virtual environment
+python -m venv venv
+.\venv\Scripts\Activate  # Windows PowerShell
+# source venv/bin/activate  # Mac/Linux
 
-3.  **Activate the Virtual Environment**:
-    - **Windows (PowerShell)**:
-        ```bash
-        .\venv\Scripts\Activate
-        ```
-    - **Mac/Linux**:
-        ```bash
-        source venv/bin/activate
-        ```
+# Install dependencies
+pip install -r requirements.txt
 
-4.  Install Dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
+# Run database migration (if existing DB)
+python migrate_db.py
 
-5.  Run the Server:
-    ```bash
-    uvicorn main:app --reload
-    ```
-    The Backend API will be running at `http://localhost:8000`.
+# Start server
+uvicorn main:app --reload
+```
+
+Backend API: `http://localhost:8000`
 
 ### 2. Frontend Setup
 
-1.  Open a new terminal and navigate to the frontend folder:
-    ```bash
-    cd lowkey-secure\frontend
-    ```
+```bash
+cd lowkey-secure\frontend
 
-2.  Install Dependencies:
-    ```bash
-    npm install
-    ```
+# Install dependencies
+npm install
 
-3.  Run the Development Server:
-    ```bash
-    npm run dev
-    ```
-    The Frontend will be running at `http://localhost:5173`.
+# Start dev server
+npm run dev
+```
 
-## 🧪 How to Test the Flow
+Frontend: `http://localhost:5173`
 
-1.  **Register Users**:
-    - Go to `http://localhost:5173/register`.
-    - Create a **University Admin** (Role: University Admin).
-    - Create a **Club Lead** (Role: Club Lead).
-    - Create a **Student** (Role: Student).
+## 🧪 Testing the Complete Workflow
 
-2.  **Issue Credential (Admin)**:
-    - Login as **Admin**.
-    - Issue a credential to the Student username you created.
+### Step 1: Register Users
+Go to `http://localhost:5173/register` and create:
+- **Admin** (Role: University Admin)
+- **Lead** (Role: Club Lead)
+- **Student** (Role: Student)
 
-3.  **Create Event (Club Lead)**:
-    - Login as **Club Lead**.
-    - Create a new Event.
-    - Select attributes (Try selecting 'Email' to see the High Risk warning).
+### Step 2: Issue Credential (Admin)
+1. Login as **Admin**
+2. Go to Admin Dashboard
+3. Issue credential to student with:
+   - Name, Major, **Year** (e.g., "1", "2", "3", "4")
+   - Student ID, University
 
-4.  **Consent & Access (Student)**:
-    - Login as **Student**.
-    - You will see your credentials in the Wallet.
-    - Simulate scanning a QR code by entering the **Request ID** (seen on Club Dashboard) into the input field.
-    - Review the **Risk Score** on the consent screen.
-    - Click **"Slide to Consent"**.
+### Step 3: Create Event (Lead)
+1. Login as **Lead**
+2. Create new event:
+   - Event name: "Hackathon Check-in"
+   - Select **Allowed Years**: e.g., Year 1, Year 2
+   - Select **Attributes**: Try selecting "email" or "name" to trigger HIGH RISK
+3. Submit for approval (status: PENDING)
 
-5.  **Verify (Club Lead)**:
-    - Go back to **Club Dashboard**.
-    - Watch the **Live Feed** update with an "Anonymous Student" entry.
+### Step 4: Approve Event (Admin)
+1. Login as **Admin**
+2. View **Approval Queue**
+3. Review event:
+   - **LOW RISK**: Approve (optional comment)
+   - **HIGH RISK**: Approve with **mandatory justification comment**
+   - **REJECT**: Requires comment
+4. Event status changes to APPROVED
+
+### Step 5: Student Consent & Access
+1. Login as **Student** (with matching year)
+2. View **Available Events** (filtered by year)
+3. Click event → Review risk badge and attributes
+4. Click **"I Consent"**
+5. See **"Access Granted"** success animation
+
+### Step 6: Verify Attendance (Lead)
+1. Return to **Lead Dashboard**
+2. Click on approved event
+3. View **Live Attendance Feed**:
+   - Identity: "Anonymous Student"
+   - Timestamp: IST
+   - Token: Anonymized hash (not user ID)
+
+## 🔒 Privacy & Security Features
+
+### RBAC Enforcement
+- **Admin**: Issue credentials, approve/reject events, view audit logs
+- **Lead**: Create/edit/delete own events, view anonymized attendance
+- **Student**: Self-register, view approved events for their year, consent anonymously
+
+### Risk Analysis
+- **HIGH RISK PII**: name, email, phone, student_id, photo, ssn, address
+- **LOW RISK**: major, year, dorm
+- HIGH risk events require Admin override with justification
+
+### Anonymization
+- `AccessLog` stores `anonymized_token` (SHA-256 hash) instead of `user_id`
+- Leads see only: "Anonymous Student" + timestamp + token
+- Admin can view raw mappings via audit API (not exposed in UI)
+
+### Audit Trail
+- All Admin approvals/rejections logged in `ApprovalAudit` table
+- Includes: admin_id, event_id, action, comment, timestamp
+
+## 📋 Manual QA Checklist
+
+- [ ] Admin can approve LOW risk event without comment
+- [ ] Admin **cannot** approve HIGH risk event without comment
+- [ ] Admin **cannot** reject any event without comment
+- [ ] Lead can create event with year restrictions
+- [ ] Lead can edit event (status resets to PENDING)
+- [ ] Lead can delete own events
+- [ ] Lead **cannot** edit/delete other leads' events
+- [ ] Student sees only APPROVED events
+- [ ] Student sees only events matching their year
+- [ ] Student **cannot** access PENDING/REJECTED events
+- [ ] Consent logs anonymized token (not user_id)
+- [ ] Attendance feed shows "Anonymous Student"
+
+## 🗂️ Project Structure
+
+```
+lowkey-secure/
+├── backend/
+│   ├── main.py           # FastAPI routes
+│   ├── models.py         # SQLAlchemy models
+│   ├── schemas.py        # Pydantic schemas
+│   ├── auth.py           # JWT authentication
+│   ├── utils.py          # Risk analysis, crypto
+│   ├── migrate_db.py     # Database migration script
+│   └── requirements.txt
+├── frontend/
+│   └── src/
+│       ├── pages/
+│       │   ├── AdminDashboard.jsx    # Approval Queue
+│       │   ├── ClubDashboard.jsx     # Event Builder
+│       │   └── StudentDashboard.jsx  # Event Feed
+│       └── api.js
+└── README.md
+```
+
+## 🔧 API Endpoints
+
+### Admin
+- `POST /admin/issue-credential` - Issue credential to student
+- `GET /admin/events?status=PENDING` - Get approval queue
+- `POST /admin/events/{id}/review` - Approve/Reject event
+
+### Lead (Club)
+- `POST /club/events` - Create event
+- `PUT /club/events/{id}` - Edit event
+- `DELETE /club/events/{id}` - Delete event
+- `GET /club/events` - Get my events
+- `GET /club/events/{id}/logs` - Get anonymized attendance
+
+### Student
+- `GET /student/credentials` - Get my credentials
+- `GET /student/events` - Get approved events (filtered by year)
+- `POST /student/events/{id}/consent` - Consent to event
+
+## 📝 Notes
+
+- Database: SQLite (`lowkey.db`)
+- RSA keys: Auto-generated and persisted (`private_key.pem`, `public_key.pem`)
+- Notifications: Simulated via console logs
+- Timezone: IST (Asia/Kolkata)
