@@ -2,76 +2,105 @@ import { useState, useEffect, useCallback } from 'react'
 import api from '../api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Users, RefreshCw, Plus, Activity, Loader2, CheckCircle } from 'lucide-react'
+import { Calendar, Users, RefreshCw, Plus, Activity, Loader2, CheckCircle, Shield, AlertTriangle, Trash2, Edit } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
 
 const ATTRIBUTES = [
     { id: 'major', label: 'Major', pii: false },
     { id: 'year', label: 'Year', pii: false },
     { id: 'email', label: 'Email', pii: true },
     { id: 'phone', label: 'Phone', pii: true },
-    { id: 'dorm', label: 'Dorm', pii: false },
+    { id: 'name', label: 'Name', pii: true },
+    { id: 'student_id', label: 'Student ID', pii: true },
 ]
 
+const YEARS = ['1', '2', '3', '4']
+
 export default function ClubDashboard() {
-    const [requests, setRequests] = useState([])
+    const [events, setEvents] = useState([])
     const [eventName, setEventName] = useState('')
-    const [selectedRequest, setSelectedRequest] = useState(null)
+    const [eventDescription, setEventDescription] = useState('')
+    const [selectedEvent, setSelectedEvent] = useState(null)
     const [logs, setLogs] = useState([])
     const [loading, setLoading] = useState(false)
     const [selectedAttrs, setSelectedAttrs] = useState([])
+    const [selectedYears, setSelectedYears] = useState([])
+    const [riskPreview, setRiskPreview] = useState(null)
 
-    const fetchRequests = useCallback(async () => {
+    const fetchEvents = useCallback(async () => {
         try {
-            const res = await api.get('/club/requests')
-            setRequests(res.data)
+            const res = await api.get('/club/events')
+            setEvents(res.data)
         } catch (err) {
             console.error(err)
         }
     }, [])
 
-    const viewLogs = useCallback(async (reqId) => {
+    const viewLogs = useCallback(async (eventId) => {
         try {
-            const res = await api.get(`/club/requests/${reqId}/logs`)
+            const res = await api.get(`/club/events/${eventId}/logs`)
             setLogs(res.data)
-            setSelectedRequest(reqId)
+            setSelectedEvent(eventId)
         } catch (err) {
             console.error(err)
         }
     }, [])
 
     useEffect(() => {
-        fetchRequests()
-        const interval = setInterval(fetchRequests, 5000)
-        return () => clearInterval(interval)
-    }, [fetchRequests])
+        fetchEvents()
+    }, [fetchEvents])
 
     useEffect(() => {
-        if (!selectedRequest) return
-        const interval = setInterval(() => viewLogs(selectedRequest), 3000)
+        if (!selectedEvent) return
+        const interval = setInterval(() => viewLogs(selectedEvent), 3000)
         return () => clearInterval(interval)
-    }, [selectedRequest, viewLogs])
+    }, [selectedEvent, viewLogs])
+
+    useEffect(() => {
+        // Analyze risk in real-time
+        const highRiskAttrs = ['name', 'email', 'phone', 'student_id']
+        const hasHighRisk = selectedAttrs.some(attr => highRiskAttrs.includes(attr))
+        setRiskPreview(hasHighRisk ? 'HIGH' : 'LOW')
+    }, [selectedAttrs])
 
     async function handleSubmit(e) {
         e.preventDefault()
         setLoading(true)
 
         try {
-            await api.post('/club/requests', {
+            await api.post('/club/events', {
                 event_name: eventName,
-                requested_attributes: selectedAttrs
+                event_description: eventDescription,
+                requested_attributes: selectedAttrs,
+                allowed_years: selectedYears
             })
             setEventName('')
+            setEventDescription('')
             setSelectedAttrs([])
-            fetchRequests()
+            setSelectedYears([])
+            fetchEvents()
         } catch (err) {
-            alert('Error creating event')
+            alert('Error creating event: ' + (err.response?.data?.detail || err.message))
         } finally {
             setLoading(false)
+        }
+    }
+
+
+    async function handleDelete(eventId) {
+        if (!confirm('Are you sure you want to delete this event?')) return
+        try {
+            await api.delete(`/club/events/${eventId}`)
+            fetchEvents()
+            if (selectedEvent === eventId) setSelectedEvent(null)
+        } catch (err) {
+            alert('Error deleting event: ' + (err.response?.data?.detail || err.message))
         }
     }
 
@@ -83,6 +112,14 @@ export default function ClubDashboard() {
         )
     }
 
+    function toggleYear(year) {
+        setSelectedYears(prev =>
+            prev.includes(year)
+                ? prev.filter(y => y !== year)
+                : [...prev, year]
+        )
+    }
+
     return (
         <article className="space-y-8">
             <header className="flex items-center gap-4">
@@ -90,8 +127,8 @@ export default function ClubDashboard() {
                     <Calendar className="h-6 w-6 text-purple-400" aria-hidden="true" />
                 </figure>
                 <hgroup>
-                    <h1 className="text-2xl font-bold text-white">Club Command Center</h1>
-                    <p className="text-slate-400">Manage events and verify attendees anonymously</p>
+                    <h1 className="text-2xl font-bold text-white">Lead Command Center</h1>
+                    <p className="text-slate-400">Create and manage events with privacy-first access</p>
                 </hgroup>
             </header>
 
@@ -100,9 +137,9 @@ export default function ClubDashboard() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Plus className="h-5 w-5 text-green-400" aria-hidden="true" />
-                            Create Check-in Event
+                            Create Event
                         </CardTitle>
-                        <CardDescription>Select attributes you need to verify</CardDescription>
+                        <CardDescription>Configure event access requirements</CardDescription>
                     </CardHeader>
 
                     <CardContent>
@@ -118,6 +155,42 @@ export default function ClubDashboard() {
                                     required
                                     className="focus:ring-purple-500"
                                 />
+                            </fieldset>
+
+                            <fieldset className="space-y-2">
+                                <Label htmlFor="event-description">Description</Label>
+                                <Textarea
+                                    id="event-description"
+                                    value={eventDescription}
+                                    onChange={(e) => setEventDescription(e.target.value)}
+                                    placeholder="Describe your event..."
+                                    rows={3}
+                                    className="focus:ring-purple-500"
+                                />
+                            </fieldset>
+
+                            <fieldset className="space-y-3">
+                                <Label>Allowed Years</Label>
+                                <div className="flex gap-2">
+                                    {YEARS.map(year => (
+                                        <label
+                                            key={year}
+                                            className={cn(
+                                                "flex-1 cursor-pointer rounded-lg border p-3 text-center transition-colors",
+                                                selectedYears.includes(year)
+                                                    ? "border-purple-500 bg-purple-500/10"
+                                                    : "border-slate-700 bg-slate-950/50 hover:bg-slate-800"
+                                            )}
+                                        >
+                                            <Checkbox
+                                                checked={selectedYears.includes(year)}
+                                                onCheckedChange={() => toggleYear(year)}
+                                                className="sr-only"
+                                            />
+                                            <span className="text-sm font-medium">Year {year}</span>
+                                        </label>
+                                    ))}
+                                </div>
                             </fieldset>
 
                             <fieldset className="space-y-3">
@@ -139,12 +212,31 @@ export default function ClubDashboard() {
                                                     className="data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
                                                 />
                                                 <span className="text-sm capitalize text-slate-300">{attr.label}</span>
-                                                {attr.pii && <Badge variant="danger" className="ml-auto">PII</Badge>}
+                                                {attr.pii && <Badge variant="danger" className="ml-auto text-xs">PII</Badge>}
                                             </label>
                                         </li>
                                     ))}
                                 </ul>
                             </fieldset>
+
+                            {riskPreview && (
+                                <div className={cn(
+                                    "rounded-lg p-3 flex items-center gap-2",
+                                    riskPreview === 'HIGH' ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"
+                                )}>
+                                    {riskPreview === 'HIGH' ? (
+                                        <>
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <span className="text-sm font-medium">HIGH RISK - Requires Admin Approval</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Shield className="h-4 w-4" />
+                                            <span className="text-sm font-medium">LOW RISK - Privacy Safe</span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
 
                             <Button
                                 type="submit"
@@ -155,53 +247,64 @@ export default function ClubDashboard() {
                                 {loading ? (
                                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                                 ) : (
-                                    'Create Event'
+                                    'Submit for Approval'
                                 )}
                             </Button>
-                            {selectedAttrs.length === 0 && (
-                                <p className="text-xs text-muted-foreground text-center">
-                                    Select at least one attribute to continue
-                                </p>
-                            )}
                         </form>
                     </CardContent>
                 </Card>
 
-                <Card className="max-h-[450px] overflow-y-auto">
+                <Card className="max-h-[600px] overflow-y-auto">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Activity className="h-5 w-5 text-green-400" aria-hidden="true" />
-                            Active Events
+                            My Events
                         </CardTitle>
                     </CardHeader>
 
                     <CardContent>
                         <ul className="space-y-3">
-                            {requests.length === 0 ? (
+                            {events.length === 0 ? (
                                 <li className="py-8 text-center text-slate-500">No events yet</li>
                             ) : (
-                                requests.map(req => (
-                                    <li key={req.id}>
-                                        <button
-                                            type="button"
-                                            onClick={() => viewLogs(req.id)}
-                                            className={cn(
-                                                "w-full rounded-lg border p-4 text-left transition-colors",
-                                                selectedRequest === req.id
-                                                    ? "border-purple-500 bg-purple-900/20"
-                                                    : "border-slate-800 bg-slate-950 hover:border-slate-600"
-                                            )}
-                                        >
+                                events.map(event => (
+                                    <li key={event.id}>
+                                        <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
                                             <header className="flex items-start justify-between gap-2">
-                                                <h3 className="font-semibold text-white">{req.event_name}</h3>
-                                                <Badge variant={req.risk_level === 'HIGH' ? 'danger' : 'success'}>
-                                                    {req.risk_level}
-                                                </Badge>
+                                                <div className="flex-1">
+                                                    <h3 className="font-semibold text-white">{event.event_name}</h3>
+                                                    <div className="flex gap-2 mt-2">
+                                                        <Badge variant={event.status === 'APPROVED' ? 'success' : event.status === 'REJECTED' ? 'danger' : 'secondary'}>
+                                                            {event.status}
+                                                        </Badge>
+                                                        <Badge variant={event.risk_level === 'HIGH' ? 'danger' : 'success'}>
+                                                            {event.risk_level}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-1">
+                                                    {event.status === 'APPROVED' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => viewLogs(event.id)}
+                                                        >
+                                                            <Users className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleDelete(event.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 text-red-400" />
+                                                    </Button>
+                                                </div>
                                             </header>
                                             <p className="mt-2 text-xs text-slate-500">
-                                                ID: {req.id} • {req.requested_attributes.join(', ')}
+                                                {event.requested_attributes.join(', ')} • Years: {event.allowed_years?.join(', ') || 'All'}
                                             </p>
-                                        </button>
+                                        </div>
                                     </li>
                                 ))
                             )}
@@ -210,14 +313,14 @@ export default function ClubDashboard() {
                 </Card>
             </section>
 
-            {selectedRequest && (
+            {selectedEvent && (
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
                             <Users className="h-5 w-5 text-green-400" aria-hidden="true" />
                             Live Attendance Feed
                         </CardTitle>
-                        <Button variant="ghost" size="icon" onClick={() => viewLogs(selectedRequest)}>
+                        <Button variant="ghost" size="icon" onClick={() => viewLogs(selectedEvent)}>
                             <RefreshCw className="h-4 w-4" aria-hidden="true" />
                             <span className="sr-only">Refresh</span>
                         </Button>
@@ -231,7 +334,7 @@ export default function ClubDashboard() {
                                         <th className="px-4 pb-3 font-medium">Status</th>
                                         <th className="px-4 pb-3 font-medium">Identity</th>
                                         <th className="px-4 pb-3 font-medium">Timestamp</th>
-                                        <th className="px-4 pb-3 font-medium">Reference</th>
+                                        <th className="px-4 pb-3 font-medium">Token</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -255,7 +358,7 @@ export default function ClubDashboard() {
                                                     {new Date(log.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                                                 </td>
                                                 <td className="px-4 py-3 font-mono text-xs text-slate-600">
-                                                    {log.proof_signature?.substring(0, 12) || 'N/A'}...
+                                                    {log.anonymized_token || 'N/A'}
                                                 </td>
                                             </tr>
                                         ))
