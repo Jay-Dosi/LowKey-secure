@@ -65,6 +65,7 @@ def verify_credential(token: str):
         print(f"Verification failed: {e}")
         return None
 
+
 # Privacy Guardian Logic
 HIGH_RISK_PII = ['name', 'email', 'phone', 'student_id', 'photo', 'ssn', 'address']
 
@@ -79,3 +80,12 @@ def analyze_privacy_risk(requested_attributes: list):
             return risk_level, message
             
     return risk_level, message
+
+def get_ist_now():
+    """Helper to get current IST timestamp"""
+    import time
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    utc_timestamp = time.time()
+    utc_dt = datetime.fromtimestamp(utc_timestamp, tz=ZoneInfo("UTC"))
+    return utc_dt.astimezone(ZoneInfo("Asia/Kolkata"))
