@@ -89,6 +89,19 @@ const RequestDetails = () => {
     }
 
     const isHighRisk = request.risk_level === 'HIGH';
+    const isMediumRisk = request.risk_level === 'MEDIUM';
+
+    const getButtonVariant = () => {
+        if (isHighRisk) return 'destructive';
+        if (isMediumRisk) return 'default';
+        return 'green';
+    };
+
+    const getButtonText = () => {
+        if (isHighRisk) return 'Authorize Disclosure';
+        if (isMediumRisk) return 'Consent to Share';
+        return 'Grant Access';
+    };
 
     return (
         <article className="max-w-md mx-auto mt-8">
@@ -147,7 +160,7 @@ const RequestDetails = () => {
                     <Button
                         onClick={handleApprove}
                         disabled={approving}
-                        variant={isHighRisk ? 'destructive' : 'default'}
+                        variant={getButtonVariant()}
                         size="lg"
                         className="w-full"
                     >
@@ -155,7 +168,7 @@ const RequestDetails = () => {
                             <Loader2 className="size-5 animate-spin" aria-label="Processing" />
                         ) : (
                             <>
-                                {isHighRisk ? 'Authorize Disclosure' : 'Slide to Consent'}
+                                {getButtonText()}
                                 <ArrowRight className="ml-2 size-5" aria-hidden="true" />
                             </>
                         )}

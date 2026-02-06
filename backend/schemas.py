@@ -78,3 +78,16 @@ class AccessLogOut(BaseModel):
     anonymized_token: Optional[str]
     class Config:
         orm_mode = True
+
+
+class UserProfile(BaseModel):
+    id: int
+    username: str
+    role: str
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    year: Optional[str] = None
+    branch: Optional[str] = None
+    class Config:
+        orm_mode = True
