@@ -46,9 +46,14 @@ export default function Register() {
                     setLoading(false)
                     return
                 }
+                if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
+                    setError('Please enter a valid 10-digit phone number')
+                    setLoading(false)
+                    return
+                }
                 payload.name = name
                 payload.email = email
-                payload.phone = phone
+                payload.phone = '+91' + phone
 
                 if (role === 'student') {
                     if (!year || !branch) {
@@ -60,7 +65,12 @@ export default function Register() {
                     payload.branch = branch
                 }
 
-                if (role === 'club' && branch) {
+                if (role === 'club') {
+                    if (!branch) {
+                        setError('Club/Organization name is required')
+                        setLoading(false)
+                        return
+                    }
                     payload.branch = branch
                 }
             }
@@ -103,9 +113,9 @@ export default function Register() {
                                     <SelectValue placeholder="Select a role" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="student">Student</SelectItem>
-                                    <SelectItem value="club">Club Lead (Verifier)</SelectItem>
-                                    <SelectItem value="admin">University Admin (Issuer)</SelectItem>
+                                    <SelectItem value="student">Student (Participant)</SelectItem>
+                                    <SelectItem value="club">Club Lead (Event Creator)</SelectItem>
+                                    <SelectItem value="admin">University Admin (Manager)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </fieldset>
@@ -164,14 +174,24 @@ export default function Register() {
 
                                 <fieldset className="space-y-2">
                                     <Label htmlFor="phone">Phone *</Label>
-                                    <Input
-                                        id="phone"
-                                        type="tel"
-                                        value={phone}
-                                        onChange={(e) => setPhone(e.target.value)}
-                                        placeholder="+1234567890"
-                                        required
-                                    />
+                                    <div className="flex">
+                                        <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-700 bg-slate-800 text-slate-300 text-sm">
+                                            +91
+                                        </span>
+                                        <Input
+                                            id="phone"
+                                            type="tel"
+                                            value={phone}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/\D/g, '').slice(0, 10)
+                                                setPhone(val)
+                                            }}
+                                            placeholder="1122334455"
+                                            required
+                                            maxLength={10}
+                                            className="rounded-l-none"
+                                        />
+                                    </div>
                                 </fieldset>
                             </>
                         )}
@@ -209,13 +229,14 @@ export default function Register() {
 
                         {role === 'club' && (
                             <fieldset className="space-y-2">
-                                <Label htmlFor="club-branch">Club/Organization (Optional)</Label>
+                                <Label htmlFor="club-branch">Club/Organization *</Label>
                                 <Input
                                     id="club-branch"
                                     type="text"
                                     value={branch}
                                     onChange={(e) => setBranch(e.target.value)}
-                                    placeholder="Tech Club"
+                                    placeholder="Club Name"
+                                    required
                                 />
                             </fieldset>
                         )}

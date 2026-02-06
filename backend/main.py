@@ -43,11 +43,31 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
 def login(user: schemas.UserLogin, db: Session = Depends(database.get_db)):
     db_user = db.query(models.User).filter(models.User.username == user.username).first()
     if not db_user:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+        raise HTTPException(status_code=404, detail="User not found. Please register first.")
     if not auth.verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+        raise HTTPException(status_code=400, detail="Incorrect password")
     access_token = auth.create_access_token(data={"sub": db_user.username, "role": db_user.role, "id": db_user.id})
     return {"access_token": access_token, "token_type": "bearer", "role": db_user.role, "user_id": db_user.id}
+
+
+# Profile Endpoint
+@app.get("/user/profile", response_model=schemas.UserProfile)
+def get_user_profile(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """Get the current user's profile information"""
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "role": current_user.role,
+        "name": current_user.name,
+        "email": current_user.email,
+        "phone": current_user.phone,
+        "year": current_user.year,
+        "branch": current_user.branch
+    }
+
 
 # Admin Endpoints
 @app.post("/admin/issue-credential", response_model=schemas.CredentialOut)

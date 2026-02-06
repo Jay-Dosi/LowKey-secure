@@ -5,6 +5,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import ClubDashboard from './pages/ClubDashboard'
 import StudentDashboard from './pages/StudentDashboard'
 import RequestDetails from './pages/RequestDetails'
+import ProfileDialog from '@/components/ProfileDialog'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { ShieldCheck, LogOut, Loader2 } from 'lucide-react'
@@ -49,10 +50,8 @@ function AppContent() {
           </Link>
 
           {isAuthenticated && (
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                {user?.username} <span className="capitalize text-green-400">({user?.role})</span>
-              </span>
+            <div className="flex items-center gap-2">
+              <ProfileDialog />
               <Button variant="ghost" size="sm" onClick={logout}>
                 <LogOut className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Logout</span>

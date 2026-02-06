@@ -64,9 +64,18 @@ export default function ClubDashboard() {
 
     useEffect(() => {
         // Analyze risk in real-time
-        const highRiskAttrs = ['name', 'email', 'phone', 'student_id']
+        const mediumRiskAttrs = ['name', 'email']
+        const highRiskAttrs = ['phone', 'student_id', 'photo', 'ssn', 'address']
         const hasHighRisk = selectedAttrs.some(attr => highRiskAttrs.includes(attr))
-        setRiskPreview(hasHighRisk ? 'HIGH' : 'LOW')
+        const hasMediumRisk = selectedAttrs.some(attr => mediumRiskAttrs.includes(attr))
+        
+        if (hasHighRisk) {
+            setRiskPreview('HIGH')
+        } else if (hasMediumRisk) {
+            setRiskPreview('MEDIUM')
+        } else {
+            setRiskPreview('LOW')
+        }
     }, [selectedAttrs])
 
     async function handleSubmit(e) {
@@ -222,12 +231,19 @@ export default function ClubDashboard() {
                             {riskPreview && (
                                 <div className={cn(
                                     "rounded-lg p-3 flex items-center gap-2",
-                                    riskPreview === 'HIGH' ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"
+                                    riskPreview === 'HIGH' ? "bg-red-500/10 text-red-400" : 
+                                    riskPreview === 'MEDIUM' ? "bg-amber-500/10 text-amber-400" :
+                                    "bg-green-500/10 text-green-400"
                                 )}>
                                     {riskPreview === 'HIGH' ? (
                                         <>
                                             <AlertTriangle className="h-4 w-4" />
-                                            <span className="text-sm font-medium">HIGH RISK - Requires Admin Approval</span>
+                                            <span className="text-sm font-medium">HIGH RISK - Exposes Sensitive Data</span>
+                                        </>
+                                    ) : riskPreview === 'MEDIUM' ? (
+                                        <>
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <span className="text-sm font-medium">MEDIUM RISK - Exposes Name/Email</span>
                                         </>
                                     ) : (
                                         <>
@@ -277,7 +293,7 @@ export default function ClubDashboard() {
                                                         <Badge variant={event.status === 'APPROVED' ? 'success' : event.status === 'REJECTED' ? 'danger' : 'secondary'}>
                                                             {event.status}
                                                         </Badge>
-                                                        <Badge variant={event.risk_level === 'HIGH' ? 'danger' : 'success'}>
+                                                        <Badge variant={event.risk_level === 'HIGH' ? 'danger' : event.risk_level === 'MEDIUM' ? 'warning' : 'success'}>
                                                             {event.risk_level}
                                                         </Badge>
                                                     </div>

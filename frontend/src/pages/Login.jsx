@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
-import { Lock, ArrowRight, Loader2 } from 'lucide-react'
+import { Lock, ArrowRight, Loader2, UserX } from 'lucide-react'
 
 export default function Login() {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [userNotFound, setUserNotFound] = useState(false)
     const navigate = useNavigate()
     const { login, isAuthenticated, user } = useAuth()
 
@@ -36,7 +37,10 @@ export default function Login() {
             const path = res.data.role === 'admin' ? '/admin' : res.data.role === 'club' ? '/club' : '/student'
             navigate(path, { replace: true })
         } catch (err) {
-            setError(err.response?.data?.detail || 'Authentication failed')
+            const status = err.response?.status
+            const detail = err.response?.data?.detail || 'Authentication failed'
+            setUserNotFound(status === 404)
+            setError(detail)
         } finally {
             setLoading(false)
         }
@@ -49,16 +53,26 @@ export default function Login() {
                     <figure className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
                         <Lock className="h-8 w-8 text-green-400" aria-hidden="true" />
                     </figure>
-                    <CardTitle id="login-heading" className="text-2xl">Identity Access</CardTitle>
+                    <CardTitle id="login-heading" className="text-2xl">Access Identity</CardTitle>
                     <CardDescription>Enter your credentials to continue</CardDescription>
                 </CardHeader>
 
                 <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4">
                         {error && (
-                            <p className="rounded-lg bg-red-500/10 p-3 text-center text-sm text-red-400" role="alert">
-                                {error}
-                            </p>
+                            <div className="rounded-lg bg-red-500/10 p-3 text-center text-sm text-red-400" role="alert">
+                                {userNotFound ? (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <UserX className="h-5 w-5" />
+                                        <p>{error}</p>
+                                        {/* <Link to="/register" className="text-green-400 hover:underline font-medium">
+                                            Click here to Register →
+                                        </Link> */}
+                                    </div>
+                                ) : (
+                                    <p>{error}</p>
+                                )}
+                            </div>
                         )}
 
                         <fieldset className="space-y-2">
