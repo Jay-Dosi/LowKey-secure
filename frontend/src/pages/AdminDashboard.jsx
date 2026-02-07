@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { Award, Shield, AlertTriangle, CheckCircle, XCircle, Loader2, Database, Users, FileKey, GraduationCap, Building2, Mail, Phone, User, ShieldAlert } from 'lucide-react'
+import { Award, Shield, AlertTriangle, CheckCircle, XCircle, Loader2, Database, Users, FileKey, GraduationCap, Building2, Mail, Phone, User, ShieldAlert, Trash2, Edit } from 'lucide-react'
 import {
     Dialog,
     DialogContent,
@@ -93,6 +93,35 @@ export default function AdminDashboard() {
             alert('Failed to review event: ' + (err.response?.data?.detail || err.message))
         } finally {
             setReviewing(false)
+        }
+    }
+
+    // User Management
+    const [editingUser, setEditingUser] = useState(null)
+    const [editForm, setEditForm] = useState({})
+
+    function startEdit(user) {
+        setEditingUser(user)
+        setEditForm({ ...user })
+    }
+
+    async function handleUpdateUser() {
+        try {
+            const res = await api.put(`/admin/users/${editingUser.id}`, editForm)
+            setUsers(users.map(u => u.id === res.data.id ? res.data : u))
+            setEditingUser(null)
+        } catch (err) {
+            alert('Failed to update user: ' + (err.response?.data?.detail || err.message))
+        }
+    }
+
+    async function handleDeleteUser(userId) {
+        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return
+        try {
+            await api.delete(`/admin/users/${userId}`)
+            setUsers(users.filter(u => u.id !== userId))
+        } catch (err) {
+            alert('Failed to delete user: ' + (err.response?.data?.detail || err.message))
         }
     }
 
@@ -269,10 +298,22 @@ export default function AdminDashboard() {
                                                 </span>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h3 className="font-semibold text-white truncate">
-                                                    {student.name || student.username}
-                                                </h3>
-                                                <p className="text-sm text-slate-400">@{student.username}</p>
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <h3 className="font-semibold text-white truncate">
+                                                            {student.name || student.username}
+                                                        </h3>
+                                                        <p className="text-sm text-slate-400">@{student.username}</p>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400" onClick={() => startEdit(student)}>
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => handleDeleteUser(student.id)}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
                                                 <div className="mt-3 space-y-1.5">
                                                     {student.email && (
                                                         <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -335,10 +376,22 @@ export default function AdminDashboard() {
                                                 </span>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h3 className="font-semibold text-white truncate">
-                                                    {club.name || club.username}
-                                                </h3>
-                                                <p className="text-sm text-slate-400">@{club.username}</p>
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <h3 className="font-semibold text-white truncate">
+                                                            {club.name || club.username}
+                                                        </h3>
+                                                        <p className="text-sm text-slate-400">@{club.username}</p>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400" onClick={() => startEdit(club)}>
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => handleDeleteUser(club.id)}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
                                                 <Badge variant="secondary" className="mt-1 text-xs">Club Lead</Badge>
                                                 <div className="mt-3 space-y-1.5">
                                                     {club.email && (
@@ -418,6 +471,56 @@ export default function AdminDashboard() {
                                 </>
                             )}
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Edit User Dialog */}
+            <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit User</DialogTitle>
+                        <DialogDescription>Modify user details. ID: {editingUser?.id}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Name</label>
+                            <input className="flex h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={editForm.name || ''}
+                                onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Email</label>
+                            <input className="flex h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={editForm.email || ''}
+                                onChange={e => setEditForm({ ...editForm, email: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Phone</label>
+                            <input className="flex h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={editForm.phone || ''}
+                                onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Year</label>
+                            <input className="flex h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={editForm.year || ''}
+                                onChange={e => setEditForm({ ...editForm, year: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Branch</label>
+                            <input className="flex h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={editForm.branch || ''}
+                                onChange={e => setEditForm({ ...editForm, branch: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
+                        <Button onClick={handleUpdateUser}>Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
