@@ -6,9 +6,12 @@ DB_PATH = "lowkey.db"
 def migrate():
     # Helper to check if column exists
     def column_exists(cursor, table, column):
-        cursor.execute(f"PRAGMA table_info({table})")
-        columns = [info[1] for info in cursor.fetchall()]
-        return column in columns
+        try:
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = [info[1] for info in cursor.fetchall()]
+            return column in columns
+        except Exception:
+            return False
 
     if not os.path.exists(DB_PATH):
         print("Database not found, skipping migration (will be created by app).")
@@ -37,6 +40,10 @@ def migrate():
         if not column_exists(cursor, "access_logs", "anonymized_token"):
              cursor.execute("ALTER TABLE access_logs ADD COLUMN anonymized_token TEXT")
 
+        if not column_exists(cursor, "access_logs", "consented_attrs"):
+             print("Adding consented_attrs to access_logs...")
+             cursor.execute("ALTER TABLE access_logs ADD COLUMN consented_attrs JSON DEFAULT '{}'")
+
         # 3. Create approval_audits if not exists
         print("Creating approval_audits table...")
         cursor.execute("""
@@ -51,8 +58,22 @@ def migrate():
             FOREIGN KEY(admin_id) REFERENCES users(id)
         )
         """)
-        
-        # 4. Create indexes if needed (optional)
+
+        # 4. Create user_audits if not exists
+        print("Creating user_audits table...")
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_audits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER,
+            target_user_id INTEGER,
+            old_username TEXT,
+            new_username TEXT,
+            timestamp DATETIME,
+            FOREIGN KEY(admin_id) REFERENCES users(id),
+            FOREIGN KEY(target_user_id) REFERENCES users(id)
+        )
+        """)
+
         
         conn.commit()
         print("Migration completed successfully!")

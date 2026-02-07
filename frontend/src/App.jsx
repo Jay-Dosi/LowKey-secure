@@ -9,6 +9,15 @@ import ProfileDialog from '@/components/ProfileDialog'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { ShieldCheck, LogOut, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 function PrivateRoute({ children, allowedRoles }) {
   const { isAuthenticated, user, loading } = useAuth()
@@ -37,6 +46,12 @@ function PrivateRoute({ children, allowedRoles }) {
 
 function AppContent() {
   const { isAuthenticated, user, logout } = useAuth()
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(false)
+    logout()
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -52,7 +67,7 @@ function AppContent() {
           {isAuthenticated && (
             <div className="flex items-center gap-2">
               <ProfileDialog />
-              <Button variant="ghost" size="sm" onClick={logout}>
+              <Button variant="ghost" size="sm" onClick={() => setShowLogoutConfirm(true)}>
                 <LogOut className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Logout</span>
               </Button>
@@ -60,6 +75,21 @@ function AppContent() {
           )}
         </nav>
       </header>
+
+      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Logout</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to end your secure session?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLogoutConfirm(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleLogout}>Logout</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <main className="container mx-auto max-w-5xl px-4 py-8">
         <Routes>

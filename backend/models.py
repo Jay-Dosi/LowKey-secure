@@ -88,6 +88,18 @@ class AccessLog(Base):
     anonymized_token = Column(String, index=True)
     proof_signature = Column(String)
     timestamp = Column(DateTime, default=get_ist_now)
-
+    consented_attrs = Column(JSON, default=dict) # NEW: Stores agreed attributes for this specific access
+    
     request = relationship("AccessRequest", back_populates="logs")
     user = relationship("User", back_populates="access_logs")
+
+class UserAudit(Base):
+    __tablename__ = "user_audits"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("users.id"))
+    target_user_id = Column(Integer, ForeignKey("users.id"))
+    old_username = Column(String)
+    new_username = Column(String)
+    timestamp = Column(DateTime, default=get_ist_now)
+

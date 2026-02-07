@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 class UserCreate(BaseModel):
-    username: str
+    username: Optional[str] = None
     password: str
     role: str # 'admin', 'club', 'student'
     # PII fields (optional for admin, required for student/club in frontend)
@@ -16,6 +16,16 @@ class UserCreate(BaseModel):
     branch: Optional[str] = None
 
 
+class UserUpdate(BaseModel):
+    """Admin can update any field"""
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    year: Optional[str] = None
+    branch: Optional[str] = None
+    role: Optional[str] = None # Admin can change roles? Maybe safer to restrict.
+    # We won't allow updating username or password here for now unless requested.
+
 class UserLogin(BaseModel):
     username: str
     password: str
@@ -25,6 +35,7 @@ class Token(BaseModel):
     token_type: str
     role: str
     user_id: int
+    username: str
 
 class CredentialIssue(BaseModel):
     student_username: str
@@ -37,7 +48,7 @@ class CredentialOut(BaseModel):
     issuer_id: int
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class RequestCreate(BaseModel):
@@ -69,15 +80,8 @@ class RequestOut(BaseModel):
     admin_comment: Optional[str]
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-
-class AccessLogOut(BaseModel):
-    id: int
-    timestamp: datetime
-    anonymized_token: Optional[str]
-    class Config:
-        orm_mode = True
 
 
 class UserProfile(BaseModel):
@@ -89,5 +93,18 @@ class UserProfile(BaseModel):
     phone: Optional[str] = None
     year: Optional[str] = None
     branch: Optional[str] = None
+    created_at: Optional[datetime] = None # Added for Admin view
+    
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class AccessLogOut(BaseModel):
+    id: int
+    timestamp: datetime
+    anonymized_token: Optional[str]
+    consented_attrs: Optional[List[str]] = [] # NEW: Show PII if consented
+    user: Optional[UserProfile] = None # Helper for frontend to show user details if authorized
+    
+    class Config:
+        from_attributes = True
