@@ -67,7 +67,7 @@ function AppContent() {
           {isAuthenticated && (
             <div className="flex items-center gap-2">
               <ProfileDialog />
-              <Button variant="ghost" size="sm" onClick={() => setShowLogoutConfirm(true)}>
+              <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowLogoutConfirm(true); }}>
                 <LogOut className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Logout</span>
               </Button>

@@ -171,7 +171,7 @@ const StudentDashboard = () => {
                                         <div className="flex justify-between items-start pr-6">
                                             <CardTitle className="text-xl">{event.event_name}</CardTitle>
                                             {event.risk_level === 'HIGH' ? (
-                                                <Badge variant="destructive" className="flex items-center gap-1">
+                                                <Badge variant="danger" className="flex items-center gap-1">
                                                     <AlertTriangle className="h-3 w-3" />
                                                     HIGH RISK
                                                 </Badge>

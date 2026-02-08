@@ -301,12 +301,19 @@ export default function ClubDashboard() {
                                                     <h3 className="font-semibold text-white">{event.event_name}</h3>
                                                     <div className="flex gap-2 mt-2">
                                                         <Badge variant={event.status === 'APPROVED' ? 'success' : event.status === 'REJECTED' ? 'danger' : 'secondary'}>
-                                                            {event.status}
+                                                            {event.status === 'REJECTED' ? 'Rejected' : event.status}
                                                         </Badge>
-                                                        <Badge variant={event.risk_level === 'HIGH' ? 'danger' : event.risk_level === 'MEDIUM' ? 'warning' : 'success'}>
-                                                            {event.risk_level}
-                                                        </Badge>
+                                                        {event.status !== 'REJECTED' && (
+                                                            <Badge variant={event.risk_level === 'HIGH' ? 'danger' : event.risk_level === 'MEDIUM' ? 'warning' : 'success'}>
+                                                                {event.risk_level}
+                                                            </Badge>
+                                                        )}
                                                     </div>
+                                                    {event.status === 'REJECTED' && event.admin_comment && (
+                                                        <p className="mt-2 text-sm text-gray-500">
+                                                            <b>Reason:</b> {event.admin_comment}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div className="flex gap-1">
                                                     {event.status === 'APPROVED' && (
@@ -328,7 +335,7 @@ export default function ClubDashboard() {
                                                 </div>
                                             </header>
                                             <p className="mt-2 text-xs text-slate-500">
-                                                {event.requested_attributes.join(', ')} • Years: {event.allowed_years?.join(', ') || 'All'}
+                                                Permissions Taken: {event.requested_attributes.join(', ')} <br/> Years: {event.allowed_years?.join(', ') || 'All'}
                                             </p>
                                         </div>
                                     </li>
