@@ -24,10 +24,10 @@ class User(Base):
     year = Column(String, nullable=True)  # For students: "1", "2", "3", "4"
     branch = Column(String, nullable=True)  # Major/Department
 
-    credentials = relationship("Credential", back_populates="owner", foreign_keys="[Credential.user_id]")
-    requests_created = relationship("AccessRequest", back_populates="creator")
-    access_logs = relationship("AccessLog", back_populates="user")
-    audits = relationship("ApprovalAudit", back_populates="admin")
+    credentials = relationship("Credential", back_populates="owner", foreign_keys="[Credential.user_id]", cascade="all, delete-orphan")
+    requests_created = relationship("AccessRequest", back_populates="creator", cascade="all, delete-orphan")
+    access_logs = relationship("AccessLog", back_populates="user", cascade="all, delete-orphan")
+    audits = relationship("ApprovalAudit", back_populates="admin", cascade="all, delete-orphan")
 
 
 class Credential(Base):
@@ -58,6 +58,7 @@ class AccessRequest(Base):
     allowed_years = Column(JSON, default=list) # List of allowed years ["1", "2"]
     admin_comment = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_ist_now)
+    expiry_date = Column(DateTime, nullable=True)  # Event expiry date
 
     creator = relationship("User", back_populates="requests_created")
     logs = relationship("AccessLog", back_populates="request")

@@ -72,21 +72,21 @@ HIGH_RISK_PII = ['phone', 'student_id', 'photo', 'ssn', 'address']  # High expos
 
 def analyze_privacy_risk(requested_attributes: list):
     risk_level = "LOW"
-    message = "✅ Safe. Anonymous eligibility check only."
+    message = "🛡️ Safe. Anonymous eligibility check only."
     
     has_medium = False
     for attr in requested_attributes:
         attr_lower = attr.lower()
         if attr_lower in HIGH_RISK_PII:
             risk_level = "HIGH"
-            message = "⚠️ This request exposes sensitive personal data."
+            message = "❗ This request exposes sensitive personal data."
             return risk_level, message
         if attr_lower in MEDIUM_RISK_PII:
             has_medium = True
     
     if has_medium:
         risk_level = "MEDIUM"
-        message = "⚡ This request exposes your name/email identity."
+        message = "⚠️ This request exposes your name/email identity."
             
     return risk_level, message
 

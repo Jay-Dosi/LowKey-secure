@@ -56,12 +56,14 @@ class RequestCreate(BaseModel):
     event_description: Optional[str] = None
     requested_attributes: List[str]
     allowed_years: List[str] = []
+    expiry_date: Optional[datetime] = None
 
 class RequestUpdate(BaseModel):
     event_name: Optional[str] = None
     event_description: Optional[str] = None
     requested_attributes: Optional[List[str]] = None
     allowed_years: Optional[List[str]] = None
+    expiry_date: Optional[datetime] = None
 
 class ApprovalAction(BaseModel):
     action: str # 'APPROVE', 'REJECT'
@@ -79,6 +81,7 @@ class RequestOut(BaseModel):
     allowed_years: List[str]
     admin_comment: Optional[str]
     created_at: datetime
+    expiry_date: Optional[datetime] = None
     class Config:
         from_attributes = True
 

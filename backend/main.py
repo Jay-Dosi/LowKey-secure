@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime
 import models, schemas, database, auth, utils, username_gen
 import re
 
@@ -16,6 +17,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+def cleanup_expired_events(db: Session):
+    """Delete events that have passed their expiry date"""
+    now = datetime.utcnow()
+    expired = db.query(models.AccessRequest).filter(
+        models.AccessRequest.expiry_date != None,
+        models.AccessRequest.expiry_date < now
+    ).all()
+    for event in expired:
+        db.query(models.AccessLog).filter(models.AccessLog.request_id == event.id).delete()
+        db.query(models.ApprovalAudit).filter(models.ApprovalAudit.request_id == event.id).delete()
+        db.delete(event)
+    if expired:
+        db.commit()
+        print(f"🗑️ Auto-deleted {len(expired)} expired event(s)")
+
+@app.on_event("startup")
+def startup_cleanup():
+    db = next(database.get_db())
+    try:
+        cleanup_expired_events(db)
+    finally:
+        db.close()
 
 # Auth Endpoints
 @app.get("/auth/generate-username")
@@ -152,6 +176,9 @@ def get_admin_events(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="Not authorized")
     
+    # Auto-cleanup expired events
+    cleanup_expired_events(db)
+    
     query = db.query(models.AccessRequest)
     if status:
         query = query.filter(models.AccessRequest.status == status)
@@ -265,12 +292,33 @@ def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    # Cascade delete logs? Or keep them anonymized?
-    # SQLAlchemy relationship usually handles cascading if configured, or we delete manually.
-    # For now, let's just delete the user.
-    db.delete(user)
-    db.commit()
-    return {"status": "success", "message": "User deleted"}
+    try:
+        # Delete related records to avoid foreign key constraint errors
+        # Delete user audit records referencing this user
+        db.query(models.UserAudit).filter(
+            (models.UserAudit.admin_id == user_id) | (models.UserAudit.target_user_id == user_id)
+        ).delete(synchronize_session='fetch')
+        # Delete access logs linked to this user
+        db.query(models.AccessLog).filter(models.AccessLog.user_id == user_id).delete()
+        # Delete approval audits by this user
+        db.query(models.ApprovalAudit).filter(models.ApprovalAudit.admin_id == user_id).delete()
+        # Delete credentials owned by or issued by this user
+        db.query(models.Credential).filter(
+            (models.Credential.user_id == user_id) | (models.Credential.issuer_id == user_id)
+        ).delete(synchronize_session='fetch')
+        # For club leads: delete access logs and audits tied to their events, then delete events
+        user_events = db.query(models.AccessRequest).filter(models.AccessRequest.club_id == user_id).all()
+        for event in user_events:
+            db.query(models.AccessLog).filter(models.AccessLog.request_id == event.id).delete()
+            db.query(models.ApprovalAudit).filter(models.ApprovalAudit.request_id == event.id).delete()
+        db.query(models.AccessRequest).filter(models.AccessRequest.club_id == user_id).delete()
+        
+        db.delete(user)
+        db.commit()
+        return {"status": "success", "message": "User deleted"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
 
 # Club Endpoints
 @app.post("/club/events", response_model=schemas.RequestOut)
@@ -292,7 +340,8 @@ def create_event(
         allowed_years=request.allowed_years,
         risk_level=risk_level,
         risk_message=risk_message,
-        status="PENDING"
+        status="PENDING",
+        expiry_date=request.expiry_date
     )
     db.add(new_event)
     db.commit()
