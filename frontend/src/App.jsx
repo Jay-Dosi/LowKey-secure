@@ -5,9 +5,19 @@ import AdminDashboard from './pages/AdminDashboard'
 import ClubDashboard from './pages/ClubDashboard'
 import StudentDashboard from './pages/StudentDashboard'
 import RequestDetails from './pages/RequestDetails'
+import ProfileDialog from '@/components/ProfileDialog'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { ShieldCheck, LogOut, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 function PrivateRoute({ children, allowedRoles }) {
   const { isAuthenticated, user, loading } = useAuth()
@@ -36,6 +46,12 @@ function PrivateRoute({ children, allowedRoles }) {
 
 function AppContent() {
   const { isAuthenticated, user, logout } = useAuth()
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(false)
+    logout()
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -49,11 +65,9 @@ function AppContent() {
           </Link>
 
           {isAuthenticated && (
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                {user?.username} <span className="capitalize text-green-400">({user?.role})</span>
-              </span>
-              <Button variant="ghost" size="sm" onClick={logout}>
+            <div className="flex items-center gap-2">
+              <ProfileDialog />
+              <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowLogoutConfirm(true); }}>
                 <LogOut className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Logout</span>
               </Button>
@@ -61,6 +75,21 @@ function AppContent() {
           )}
         </nav>
       </header>
+
+      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Logout</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to end your secure session?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLogoutConfirm(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleLogout}>Logout</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <main className="container mx-auto max-w-5xl px-4 py-8">
         <Routes>

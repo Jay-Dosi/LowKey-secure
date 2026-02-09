@@ -24,10 +24,10 @@ class User(Base):
     year = Column(String, nullable=True)  # For students: "1", "2", "3", "4"
     branch = Column(String, nullable=True)  # Major/Department
 
-    credentials = relationship("Credential", back_populates="owner", foreign_keys="[Credential.user_id]")
-    requests_created = relationship("AccessRequest", back_populates="creator")
-    access_logs = relationship("AccessLog", back_populates="user")
-    audits = relationship("ApprovalAudit", back_populates="admin")
+    credentials = relationship("Credential", back_populates="owner", foreign_keys="[Credential.user_id]", cascade="all, delete-orphan")
+    requests_created = relationship("AccessRequest", back_populates="creator", cascade="all, delete-orphan")
+    access_logs = relationship("AccessLog", back_populates="user", cascade="all, delete-orphan")
+    audits = relationship("ApprovalAudit", back_populates="admin", cascade="all, delete-orphan")
 
 
 class Credential(Base):
@@ -58,6 +58,7 @@ class AccessRequest(Base):
     allowed_years = Column(JSON, default=list) # List of allowed years ["1", "2"]
     admin_comment = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_ist_now)
+    expiry_date = Column(DateTime, nullable=True)  # Event expiry date
 
     creator = relationship("User", back_populates="requests_created")
     logs = relationship("AccessLog", back_populates="request")
@@ -88,6 +89,18 @@ class AccessLog(Base):
     anonymized_token = Column(String, index=True)
     proof_signature = Column(String)
     timestamp = Column(DateTime, default=get_ist_now)
-
+    consented_attrs = Column(JSON, default=dict) # NEW: Stores agreed attributes for this specific access
+    
     request = relationship("AccessRequest", back_populates="logs")
     user = relationship("User", back_populates="access_logs")
+
+class UserAudit(Base):
+    __tablename__ = "user_audits"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("users.id"))
+    target_user_id = Column(Integer, ForeignKey("users.id"))
+    old_username = Column(String)
+    new_username = Column(String)
+    timestamp = Column(DateTime, default=get_ist_now)
+
