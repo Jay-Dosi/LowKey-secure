@@ -39,6 +39,7 @@ export default function ClubDashboard() {
     const [loading, setLoading] = useState(false)
     const [selectedAttrs, setSelectedAttrs] = useState([])
     const [selectedYears, setSelectedYears] = useState([])
+    const [expiryDate, setExpiryDate] = useState('')
     const [riskPreview, setRiskPreview] = useState(null)
 
     const fetchEvents = useCallback(async () => {
@@ -93,16 +94,21 @@ export default function ClubDashboard() {
         setLoading(true)
 
         try {
-            await api.post('/club/events', {
+            const payload = {
                 event_name: eventName,
                 event_description: eventDescription,
                 requested_attributes: selectedAttrs,
                 allowed_years: selectedYears
-            })
+            }
+            if (expiryDate) {
+                payload.expiry_date = expiryDate
+            }
+            await api.post('/club/events', payload)
             setEventName('')
             setEventDescription('')
             setSelectedAttrs([])
             setSelectedYears([])
+            setExpiryDate('')
             fetchEvents()
         } catch (err) {
             alert('Error creating event: ' + (err.response?.data?.detail || err.message))
@@ -186,6 +192,22 @@ export default function ClubDashboard() {
                                     rows={3}
                                     className="focus:ring-purple-500"
                                 />
+                            </fieldset>
+
+                            <fieldset className="space-y-2">
+                                <Label htmlFor="expiry-date">Event Expiry Date</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="expiry-date"
+                                        type="datetime-local"
+                                        value={expiryDate}
+                                        onChange={(e) => setExpiryDate(e.target.value)}
+                                        min={(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`; })()}
+                                        className="focus:ring-purple-500 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                                    />
+                                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-400 pointer-events-none" />
+                                </div>
+                                <p className="text-xs text-slate-500">Event will be auto-deleted after this date</p>
                             </fieldset>
 
                             <fieldset className="space-y-3">
@@ -335,7 +357,7 @@ export default function ClubDashboard() {
                                                 </div>
                                             </header>
                                             <p className="mt-2 text-xs text-slate-500">
-                                                Permissions Taken: {event.requested_attributes.join(', ')} <br/> Years: {event.allowed_years?.join(', ') || 'All'}
+                                                Permissions Taken: {event.requested_attributes.join(', ')} <br /> Years: {event.allowed_years?.join(', ') || 'All'}
                                             </p>
                                         </div>
                                     </li>
