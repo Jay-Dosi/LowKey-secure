@@ -7,7 +7,15 @@ import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Users, RefreshCw, Plus, Activity, Loader2, CheckCircle, Shield, AlertTriangle, Trash2, Edit } from 'lucide-react'
+
+import { Calendar, Users, RefreshCw, Plus, Activity, Loader2, CheckCircle, Shield, AlertTriangle, Trash2, Edit, X } from 'lucide-react'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog"
 import { cn } from '@/lib/utils'
 
 
@@ -31,6 +39,7 @@ export default function ClubDashboard() {
     const [loading, setLoading] = useState(false)
     const [selectedAttrs, setSelectedAttrs] = useState([])
     const [selectedYears, setSelectedYears] = useState([])
+    const [expiryDate, setExpiryDate] = useState('')
     const [riskPreview, setRiskPreview] = useState(null)
 
     const fetchEvents = useCallback(async () => {
@@ -58,15 +67,26 @@ export default function ClubDashboard() {
 
     useEffect(() => {
         if (!selectedEvent) return
-        const interval = setInterval(() => viewLogs(selectedEvent), 3000)
-        return () => clearInterval(interval)
+        // Fetch logs once when opened? Or poll? Prompt said "Avoid constant polling".
+        // viewLogs fetches it once. The poll was for the live feed.
+        // I will remove the poll.
+        viewLogs(selectedEvent)
     }, [selectedEvent, viewLogs])
 
     useEffect(() => {
         // Analyze risk in real-time
-        const highRiskAttrs = ['name', 'email', 'phone', 'student_id']
+        const mediumRiskAttrs = ['name', 'email']
+        const highRiskAttrs = ['phone', 'student_id', 'photo', 'ssn', 'address']
         const hasHighRisk = selectedAttrs.some(attr => highRiskAttrs.includes(attr))
-        setRiskPreview(hasHighRisk ? 'HIGH' : 'LOW')
+        const hasMediumRisk = selectedAttrs.some(attr => mediumRiskAttrs.includes(attr))
+
+        if (hasHighRisk) {
+            setRiskPreview('HIGH')
+        } else if (hasMediumRisk) {
+            setRiskPreview('MEDIUM')
+        } else {
+            setRiskPreview('LOW')
+        }
     }, [selectedAttrs])
 
     async function handleSubmit(e) {
@@ -74,16 +94,21 @@ export default function ClubDashboard() {
         setLoading(true)
 
         try {
-            await api.post('/club/events', {
+            const payload = {
                 event_name: eventName,
                 event_description: eventDescription,
                 requested_attributes: selectedAttrs,
                 allowed_years: selectedYears
-            })
+            }
+            if (expiryDate) {
+                payload.expiry_date = expiryDate
+            }
+            await api.post('/club/events', payload)
             setEventName('')
             setEventDescription('')
             setSelectedAttrs([])
             setSelectedYears([])
+            setExpiryDate('')
             fetchEvents()
         } catch (err) {
             alert('Error creating event: ' + (err.response?.data?.detail || err.message))
@@ -169,6 +194,22 @@ export default function ClubDashboard() {
                                 />
                             </fieldset>
 
+                            <fieldset className="space-y-2">
+                                <Label htmlFor="expiry-date">Event Expiry Date</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="expiry-date"
+                                        type="datetime-local"
+                                        value={expiryDate}
+                                        onChange={(e) => setExpiryDate(e.target.value)}
+                                        min={(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`; })()}
+                                        className="focus:ring-purple-500 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                                    />
+                                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-400 pointer-events-none" />
+                                </div>
+                                <p className="text-xs text-slate-500">Event will be auto-deleted after this date</p>
+                            </fieldset>
+
                             <fieldset className="space-y-3">
                                 <Label>Allowed Years</Label>
                                 <div className="flex gap-2">
@@ -222,12 +263,19 @@ export default function ClubDashboard() {
                             {riskPreview && (
                                 <div className={cn(
                                     "rounded-lg p-3 flex items-center gap-2",
-                                    riskPreview === 'HIGH' ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"
+                                    riskPreview === 'HIGH' ? "bg-red-500/10 text-red-400" :
+                                        riskPreview === 'MEDIUM' ? "bg-amber-500/10 text-amber-400" :
+                                            "bg-green-500/10 text-green-400"
                                 )}>
                                     {riskPreview === 'HIGH' ? (
                                         <>
                                             <AlertTriangle className="h-4 w-4" />
-                                            <span className="text-sm font-medium">HIGH RISK - Requires Admin Approval</span>
+                                            <span className="text-sm font-medium">HIGH RISK - Exposes Sensitive Data</span>
+                                        </>
+                                    ) : riskPreview === 'MEDIUM' ? (
+                                        <>
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <span className="text-sm font-medium">MEDIUM RISK - Exposes Name/Email</span>
                                         </>
                                     ) : (
                                         <>
@@ -275,12 +323,19 @@ export default function ClubDashboard() {
                                                     <h3 className="font-semibold text-white">{event.event_name}</h3>
                                                     <div className="flex gap-2 mt-2">
                                                         <Badge variant={event.status === 'APPROVED' ? 'success' : event.status === 'REJECTED' ? 'danger' : 'secondary'}>
-                                                            {event.status}
+                                                            {event.status === 'REJECTED' ? 'Rejected' : event.status}
                                                         </Badge>
-                                                        <Badge variant={event.risk_level === 'HIGH' ? 'danger' : 'success'}>
-                                                            {event.risk_level}
-                                                        </Badge>
+                                                        {event.status !== 'REJECTED' && (
+                                                            <Badge variant={event.risk_level === 'HIGH' ? 'danger' : event.risk_level === 'MEDIUM' ? 'warning' : 'success'}>
+                                                                {event.risk_level}
+                                                            </Badge>
+                                                        )}
                                                     </div>
+                                                    {event.status === 'REJECTED' && event.admin_comment && (
+                                                        <p className="mt-2 text-sm text-gray-500">
+                                                            <b>Reason:</b> {event.admin_comment}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div className="flex gap-1">
                                                     {event.status === 'APPROVED' && (
@@ -302,7 +357,7 @@ export default function ClubDashboard() {
                                                 </div>
                                             </header>
                                             <p className="mt-2 text-xs text-slate-500">
-                                                {event.requested_attributes.join(', ')} • Years: {event.allowed_years?.join(', ') || 'All'}
+                                                Permissions Taken: {event.requested_attributes.join(', ')} <br /> Years: {event.allowed_years?.join(', ') || 'All'}
                                             </p>
                                         </div>
                                     </li>
@@ -313,62 +368,81 @@ export default function ClubDashboard() {
                 </Card>
             </section>
 
-            {selectedEvent && (
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                            <Users className="h-5 w-5 text-green-400" aria-hidden="true" />
-                            Live Attendance Feed
-                        </CardTitle>
-                        <Button variant="ghost" size="icon" onClick={() => viewLogs(selectedEvent)}>
-                            <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                            <span className="sr-only">Refresh</span>
-                        </Button>
-                    </CardHeader>
+            <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Users className="h-5 w-5 text-green-400" />
+                                Live Attendance Feed
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => viewLogs(selectedEvent)}>
+                                <RefreshCw className="h-4 w-4" />
+                            </Button>
+                        </DialogTitle>
+                        <DialogDescription>
+                            Real-time access logs. PII revealed based on consent.
+                        </DialogDescription>
+                    </DialogHeader>
 
-                    <CardContent>
-                        <figure className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead>
-                                    <tr className="border-b border-slate-800 text-slate-500">
-                                        <th className="px-4 pb-3 font-medium">Status</th>
-                                        <th className="px-4 pb-3 font-medium">Identity</th>
-                                        <th className="px-4 pb-3 font-medium">Timestamp</th>
-                                        <th className="px-4 pb-3 font-medium">Token</th>
+                    <div className="rounded-md border border-slate-800">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-900">
+                                <tr className="border-b border-slate-800 text-slate-500">
+                                    <th className="px-4 py-3 font-medium">Status</th>
+                                    <th className="px-4 py-3 font-medium">Identity</th>
+                                    <th className="px-4 py-3 font-medium">Timestamp</th>
+                                    <th className="px-4 py-3 font-medium">Token</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {logs.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="py-8 text-center text-slate-500">
+                                            No attendees yet
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {logs.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={4} className="py-8 text-center text-slate-500">
-                                                No attendees yet
+                                ) : (
+                                    logs.map(log => (
+                                        <tr key={log.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                                            <td className="px-4 py-3">
+                                                <span className="flex items-center gap-2 font-medium text-green-400">
+                                                    <CheckCircle className="h-4 w-4" aria-hidden="true" />
+                                                    Verified
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-300">
+                                                {log.user ? (
+                                                    <div className="space-y-1">
+                                                        <div className="font-semibold text-white">{log.user.name || 'Unknown'}</div>
+                                                        {log.user.email && <div className="text-xs text-slate-400">{log.user.email}</div>}
+                                                        {log.user.phone && <div className="text-xs text-slate-400">{log.user.phone}</div>}
+                                                        {log.user.year && <Badge variant="outline" className="text-[10px] mr-1">Year {log.user.year}</Badge>}
+                                                        {log.user.branch && <Badge variant="secondary" className="text-[10px]">{log.user.branch}</Badge>}
+                                                    </div>
+                                                ) : (
+                                                    <span className="italic text-slate-500">Anonymous Student</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 font-mono text-slate-400">
+                                                {/* 24-hour format with real-time date */}
+                                                {new Date(log.timestamp).toLocaleString('en-IN', {
+                                                    timeZone: 'Asia/Kolkata',
+                                                    day: '2-digit', month: 'short', year: 'numeric',
+                                                    hour: '2-digit', minute: '2-digit', hour12: false
+                                                })}
+                                            </td>
+                                            <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                                                {log.anonymized_token || 'N/A'}
                                             </td>
                                         </tr>
-                                    ) : (
-                                        logs.map(log => (
-                                            <tr key={log.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                                                <td className="px-4 py-3">
-                                                    <span className="flex items-center gap-2 font-medium text-green-400">
-                                                        <CheckCircle className="h-4 w-4" aria-hidden="true" />
-                                                        Verified
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-300">Anonymous Student</td>
-                                                <td className="px-4 py-3 font-mono text-slate-400">
-                                                    {new Date(log.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
-                                                </td>
-                                                <td className="px-4 py-3 font-mono text-xs text-slate-600">
-                                                    {log.anonymized_token || 'N/A'}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </figure>
-                    </CardContent>
-                </Card>
-            )}
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </article>
     )
 }

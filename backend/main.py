@@ -2,7 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
-import models, schemas, database, auth, utils
+from datetime import datetime
+import models, schemas, database, auth, utils, username_gen
+import re
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -16,15 +18,83 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def cleanup_expired_events(db: Session):
+    """Delete events that have passed their expiry date"""
+    now = datetime.utcnow()
+    expired = db.query(models.AccessRequest).filter(
+        models.AccessRequest.expiry_date != None,
+        models.AccessRequest.expiry_date < now
+    ).all()
+    for event in expired:
+        db.query(models.AccessLog).filter(models.AccessLog.request_id == event.id).delete()
+        db.query(models.ApprovalAudit).filter(models.ApprovalAudit.request_id == event.id).delete()
+        db.delete(event)
+    if expired:
+        db.commit()
+        print(f"🗑️ Auto-deleted {len(expired)} expired event(s)")
+
+@app.on_event("startup")
+def startup_cleanup():
+    db = next(database.get_db())
+    try:
+        cleanup_expired_events(db)
+    finally:
+        db.close()
+
 # Auth Endpoints
+@app.get("/auth/generate-username")
+def get_generated_username(role: str = "student", db: Session = Depends(database.get_db)):
+    """Generate a random username for preview"""
+    username = username_gen.generate_random_username(role)
+    # Ensure uniqueness
+    while db.query(models.User).filter(models.User.username == username).first():
+        username = username_gen.generate_random_username(role)
+    return {"username": username}
+
 @app.post("/auth/register", response_model=schemas.Token)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
-    db_user = db.query(models.User).filter(models.User.username == user.username).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+    # 1. Validation
+    if user.role not in ['student', 'club', 'admin']: 
+        raise HTTPException(status_code=400, detail="Invalid role")
+    
+    if user.phone and not utils.validate_phone(user.phone):
+        raise HTTPException(status_code=400, detail="Invalid phone number. Must be 10 digits starting with 6-9.")
+        
+    if user.email and not utils.validate_email(user.email):
+        raise HTTPException(status_code=400, detail="Invalid email address. Must be a valid domain (.com, .in, etc).")
+
+    # 2. Username Logic
+    final_username = None
+
+    # Admin MUST provide username manually
+    if user.role == "admin":
+        if not user.username:
+            raise HTTPException(status_code=400, detail="Admin must provide a manual username.")
+        final_username = user.username
+        
+    # Students/Clubs can choose
+    elif user.username:
+        # Custom username provided
+        final_username = user.username
+        # Validate custom username rules (length, reserved words)
+        if len(final_username) < 3 or len(final_username) > 30:
+             raise HTTPException(status_code=400, detail="Username must be between 3 and 30 characters.")
+        if not re.match(r"^[a-zA-Z0-9_-]+$", final_username):
+             raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, underscores, and hyphens.")
+    else:
+        # Generate one
+        final_username = username_gen.generate_random_username(user.role)
+        # Check collision loop
+        while db.query(models.User).filter(models.User.username == final_username).first():
+            final_username = username_gen.generate_random_username(user.role)
+            
+    # Check if username exists
+    if db.query(models.User).filter(models.User.username == final_username).first():
+        raise HTTPException(status_code=400, detail="Username already taken. Please choose another.")
+
     hashed_password = auth.get_password_hash(user.password)
     new_user = models.User(
-        username=user.username, 
+        username=final_username, 
         hashed_password=hashed_password, 
         role=user.role,
         name=user.name,
@@ -37,17 +107,37 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     db.commit()
     db.refresh(new_user)
     access_token = auth.create_access_token(data={"sub": new_user.username, "role": new_user.role, "id": new_user.id})
-    return {"access_token": access_token, "token_type": "bearer", "role": new_user.role, "user_id": new_user.id}
+    return {"access_token": access_token, "token_type": "bearer", "role": new_user.role, "user_id": new_user.id, "username": new_user.username}
 
 @app.post("/auth/login", response_model=schemas.Token)
 def login(user: schemas.UserLogin, db: Session = Depends(database.get_db)):
     db_user = db.query(models.User).filter(models.User.username == user.username).first()
     if not db_user:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+        raise HTTPException(status_code=404, detail="User not found. Please register first.")
     if not auth.verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+        raise HTTPException(status_code=400, detail="Incorrect password")
     access_token = auth.create_access_token(data={"sub": db_user.username, "role": db_user.role, "id": db_user.id})
-    return {"access_token": access_token, "token_type": "bearer", "role": db_user.role, "user_id": db_user.id}
+    return {"access_token": access_token, "token_type": "bearer", "role": db_user.role, "user_id": db_user.id, "username": db_user.username}
+
+
+# Profile Endpoint
+@app.get("/user/profile", response_model=schemas.UserProfile)
+def get_user_profile(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """Get the current user's profile information"""
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "role": current_user.role,
+        "name": current_user.name,
+        "email": current_user.email,
+        "phone": current_user.phone,
+        "year": current_user.year,
+        "branch": current_user.branch
+    }
+
 
 # Admin Endpoints
 @app.post("/admin/issue-credential", response_model=schemas.CredentialOut)
@@ -85,6 +175,9 @@ def get_admin_events(
 ):
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Auto-cleanup expired events
+    cleanup_expired_events(db)
     
     query = db.query(models.AccessRequest)
     if status:
@@ -165,6 +258,68 @@ def get_all_credentials(
     creds = db.query(models.Credential).all()
     return creds
 
+@app.put("/admin/users/{user_id}", response_model=schemas.UserProfile)
+def update_user(
+    user_id: int,
+    user_data: schemas.UserUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    for key, value in user_data.dict(exclude_unset=True).items():
+        setattr(user, key, value)
+        
+    db.commit()
+    db.refresh(user)
+    return user
+
+@app.delete("/admin/users/{user_id}")
+def delete_user(
+    user_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    try:
+        # Delete related records to avoid foreign key constraint errors
+        # Delete user audit records referencing this user
+        db.query(models.UserAudit).filter(
+            (models.UserAudit.admin_id == user_id) | (models.UserAudit.target_user_id == user_id)
+        ).delete(synchronize_session='fetch')
+        # Delete access logs linked to this user
+        db.query(models.AccessLog).filter(models.AccessLog.user_id == user_id).delete()
+        # Delete approval audits by this user
+        db.query(models.ApprovalAudit).filter(models.ApprovalAudit.admin_id == user_id).delete()
+        # Delete credentials owned by or issued by this user
+        db.query(models.Credential).filter(
+            (models.Credential.user_id == user_id) | (models.Credential.issuer_id == user_id)
+        ).delete(synchronize_session='fetch')
+        # For club leads: delete access logs and audits tied to their events, then delete events
+        user_events = db.query(models.AccessRequest).filter(models.AccessRequest.club_id == user_id).all()
+        for event in user_events:
+            db.query(models.AccessLog).filter(models.AccessLog.request_id == event.id).delete()
+            db.query(models.ApprovalAudit).filter(models.ApprovalAudit.request_id == event.id).delete()
+        db.query(models.AccessRequest).filter(models.AccessRequest.club_id == user_id).delete()
+        
+        db.delete(user)
+        db.commit()
+        return {"status": "success", "message": "User deleted"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
+
 # Club Endpoints
 @app.post("/club/events", response_model=schemas.RequestOut)
 def create_event(
@@ -185,7 +340,8 @@ def create_event(
         allowed_years=request.allowed_years,
         risk_level=risk_level,
         risk_message=risk_message,
-        status="PENDING"
+        status="PENDING",
+        expiry_date=request.expiry_date
     )
     db.add(new_event)
     db.commit()
@@ -268,7 +424,28 @@ def get_event_logs(
     if not req or req.club_id != current_user.id:
         raise HTTPException(status_code=404, detail="Event not found")
         
-    return db.query(models.AccessLog).filter(models.AccessLog.request_id == request_id).order_by(models.AccessLog.timestamp.desc()).all()
+    logs = db.query(models.AccessLog).filter(models.AccessLog.request_id == request_id).order_by(models.AccessLog.timestamp.desc()).all()
+    
+    # Populate PII if consented
+    results = []
+    for log in logs:
+        log_out = schemas.AccessLogOut.from_orm(log)
+        
+        # Check consent
+        # log.consented_attrs is a JSON field (e.g., ["name", "email", "phone"])
+        if log.consented_attrs and log.user_id:
+             user = db.query(models.User).filter(models.User.id == log.user_id).first()
+             if user:
+                 user_data = {}
+                 # Only reveal consented attributes
+                 for attr in log.consented_attrs:
+                     if hasattr(user, attr):
+                         user_data[attr] = getattr(user, attr)
+                 log_out.user = user_data
+        
+        results.append(log_out)
+        
+    return results
 
 @app.get("/club/calendar", response_model=List[schemas.RequestOut])
 def get_all_events_calendar(
@@ -421,12 +598,16 @@ def consent_to_event(
     token_string = f"{current_user.id}:{request_id}:{timestamp}"
     anonymized_token = hashlib.sha256(token_string.encode()).hexdigest()[:16]
     
+    # Store consented attributes
+    consented_attrs = event.requested_attributes if event.requested_attributes else []
+
     # Log anonymous access
     access_log = models.AccessLog(
         request_id=request_id,
-        user_id=current_user.id,  # Keep for internal deduplication
+        user_id=current_user.id,  # Keep for internal deduplication + conditional reveal
         anonymized_token=anonymized_token,
-        proof_signature="user_profile_verified"  # Since we're using User model, not credentials
+        proof_signature="user_profile_verified",  # Since we're using User model, not credentials
+        consented_attrs=consented_attrs # Store what they agreed to share
     )
     db.add(access_log)
     db.commit()

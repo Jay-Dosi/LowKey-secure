@@ -67,17 +67,26 @@ def verify_credential(token: str):
 
 
 # Privacy Guardian Logic
-HIGH_RISK_PII = ['name', 'email', 'phone', 'student_id', 'photo', 'ssn', 'address']
+MEDIUM_RISK_PII = ['name', 'email']  # Moderate exposure - identifiable but not sensitive
+HIGH_RISK_PII = ['phone', 'student_id', 'photo', 'ssn', 'address']  # High exposure - sensitive PII
 
 def analyze_privacy_risk(requested_attributes: list):
     risk_level = "LOW"
-    message = "✅ Safe. Anonymous eligibility check only."
+    message = "🛡️ Safe. Anonymous eligibility check only."
     
+    has_medium = False
     for attr in requested_attributes:
-        if attr.lower() in HIGH_RISK_PII:
+        attr_lower = attr.lower()
+        if attr_lower in HIGH_RISK_PII:
             risk_level = "HIGH"
-            message = "⚠️ This request exposes your real identity."
+            message = "❗ This request exposes sensitive personal data."
             return risk_level, message
+        if attr_lower in MEDIUM_RISK_PII:
+            has_medium = True
+    
+    if has_medium:
+        risk_level = "MEDIUM"
+        message = "⚠️ This request exposes your name/email identity."
             
     return risk_level, message
 
@@ -89,3 +98,45 @@ def get_ist_now():
     utc_timestamp = time.time()
     utc_dt = datetime.fromtimestamp(utc_timestamp, tz=ZoneInfo("UTC"))
     return utc_dt.astimezone(ZoneInfo("Asia/Kolkata"))
+
+def validate_phone(phone: str) -> bool:
+    """
+    Strict validation for Indian phone numbers:
+    - Exactly 10 digits
+    - Starts with 6, 7, 8, or 9
+    - No spaces or symbols allowed
+    """
+    import re
+    if not phone:
+        return False
+    # Regex: Start with 6-9, followed by 9 digits. \d matches [0-9].
+    pattern = re.compile(r"^[6-9]\d{9}$")
+    return bool(pattern.match(phone))
+
+def validate_email(email: str) -> bool:
+    """
+    Basic structure check + Domain ending check
+    """
+    import re
+    if not email:
+        return False
+    
+    # Basic email regex
+    # strict check for ending
+    allowed_domains = [".com", ".in", ".co", ".edu", ".org"]
+    
+    # Simple regex for structure
+    # user@domain.tld
+    pattern = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    if not pattern.match(email):
+        return False
+        
+    # Check TLD
+    valid_tld = False
+    for domain in allowed_domains:
+        if email.endswith(domain):
+            valid_tld = True
+            break
+            
+    return valid_tld
+
