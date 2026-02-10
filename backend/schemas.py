@@ -56,7 +56,7 @@ class RequestCreate(BaseModel):
     event_description: Optional[str] = None
     requested_attributes: List[str]
     allowed_years: List[str] = []
-    expiry_date: Optional[datetime] = None
+    expiry_date: datetime
 
 class RequestUpdate(BaseModel):
     event_name: Optional[str] = None

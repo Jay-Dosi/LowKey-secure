@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 import models, schemas, database, auth, utils, username_gen
 import re
 
@@ -106,7 +106,8 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    access_token = auth.create_access_token(data={"sub": new_user.username, "role": new_user.role, "id": new_user.id})
+    token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(data={"sub": new_user.username, "role": new_user.role, "id": new_user.id}, expires_delta=token_expires)
     return {"access_token": access_token, "token_type": "bearer", "role": new_user.role, "user_id": new_user.id, "username": new_user.username}
 
 @app.post("/auth/login", response_model=schemas.Token)
@@ -116,7 +117,8 @@ def login(user: schemas.UserLogin, db: Session = Depends(database.get_db)):
         raise HTTPException(status_code=404, detail="User not found. Please register first.")
     if not auth.verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect password")
-    access_token = auth.create_access_token(data={"sub": db_user.username, "role": db_user.role, "id": db_user.id})
+    token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(data={"sub": db_user.username, "role": db_user.role, "id": db_user.id}, expires_delta=token_expires)
     return {"access_token": access_token, "token_type": "bearer", "role": db_user.role, "user_id": db_user.id, "username": db_user.username}
 
 
@@ -426,6 +428,11 @@ def get_event_logs(
         
     logs = db.query(models.AccessLog).filter(models.AccessLog.request_id == request_id).order_by(models.AccessLog.timestamp.desc()).all()
     
+    # Mapping from frontend attribute names to actual User model field names
+    ATTR_FIELD_MAP = {
+        "student_id": "username",
+    }
+
     # Populate PII if consented
     results = []
     for log in logs:
@@ -439,8 +446,9 @@ def get_event_logs(
                  user_data = {}
                  # Only reveal consented attributes
                  for attr in log.consented_attrs:
-                     if hasattr(user, attr):
-                         user_data[attr] = getattr(user, attr)
+                     model_field = ATTR_FIELD_MAP.get(attr, attr)
+                     if hasattr(user, model_field):
+                         user_data[model_field] = getattr(user, model_field)
                  log_out.user = user_data
         
         results.append(log_out)
