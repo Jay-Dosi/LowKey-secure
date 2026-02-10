@@ -114,11 +114,17 @@ export default function Register() {
                 }
 
                 if (role === 'club') {
+                    if (!year) {
+                        setError('Year is required for club leads')
+                        setLoading(false)
+                        return
+                    }
                     if (!branch) {
                         setError('Club/Organization name is required')
                         setLoading(false)
                         return
                     }
+                    payload.year = year
                     payload.branch = branch
                 }
             }
@@ -318,35 +324,35 @@ export default function Register() {
                                 </>
                             )}
 
-                            {role === 'student' && (
-                                <>
-                                    <fieldset className="space-y-2">
-                                        <Label htmlFor="year">Year *</Label>
-                                        <Select value={year} onValueChange={setYear} required>
-                                            <SelectTrigger id="year">
-                                                <SelectValue placeholder="Select year" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="1">First Year</SelectItem>
-                                                <SelectItem value="2">Second Year</SelectItem>
-                                                <SelectItem value="3">Third Year</SelectItem>
-                                                <SelectItem value="4">Fourth Year</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </fieldset>
+                            {(role === 'student' || role === 'club') && (
+                                <fieldset className="space-y-2">
+                                    <Label htmlFor="year">Year *</Label>
+                                    <Select value={year} onValueChange={setYear} required>
+                                        <SelectTrigger id="year">
+                                            <SelectValue placeholder="Select year" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="1">First Year</SelectItem>
+                                            <SelectItem value="2">Second Year</SelectItem>
+                                            <SelectItem value="3">Third Year</SelectItem>
+                                            <SelectItem value="4">Fourth Year</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </fieldset>
+                            )}
 
-                                    <fieldset className="space-y-2">
-                                        <Label htmlFor="branch">Branch/Major *</Label>
-                                        <Input
-                                            id="branch"
-                                            type="text"
-                                            value={branch}
-                                            onChange={(e) => setBranch(e.target.value)}
-                                            placeholder="Computer Science"
-                                            required
-                                        />
-                                    </fieldset>
-                                </>
+                            {role === 'student' && (
+                                <fieldset className="space-y-2">
+                                    <Label htmlFor="branch">Branch/Major *</Label>
+                                    <Input
+                                        id="branch"
+                                        type="text"
+                                        value={branch}
+                                        onChange={(e) => setBranch(e.target.value)}
+                                        placeholder="Computer Science"
+                                        required
+                                    />
+                                </fieldset>
                             )}
 
                             {role === 'club' && (

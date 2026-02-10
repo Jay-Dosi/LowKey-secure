@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { Award, Shield, AlertTriangle, CheckCircle, XCircle, Loader2, Database, Users, FileKey, GraduationCap, Building2, Mail, Phone, User, ShieldAlert, Trash2, Edit } from 'lucide-react'
+import { Award, Shield, AlertTriangle, CheckCircle, XCircle, Loader2, Database, Users, FileKey, GraduationCap, Building2, Mail, Phone, User, ShieldAlert, Trash2, Edit, History, Clock, CalendarX2 } from 'lucide-react'
 import {
     Dialog,
     DialogContent,
@@ -17,6 +17,7 @@ import {
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('approvals')
     const [events, setEvents] = useState([])
+    const [historyEvents, setHistoryEvents] = useState([])
     const [users, setUsers] = useState([])
     const [credentials, setCredentials] = useState([])
     const [loading, setLoading] = useState(true)
@@ -32,6 +33,8 @@ export default function AdminDashboard() {
             fetchEvents()
         } else if (activeTab === 'students' || activeTab === 'clubs') {
             fetchUsers()
+        } else if (activeTab === 'history') {
+            fetchHistory()
         }
     }, [activeTab])
 
@@ -63,6 +66,21 @@ export default function AdminDashboard() {
             setEvents(res.data)
         } catch (err) {
             console.error('Failed to fetch events:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    async function fetchHistory() {
+        setLoading(true)
+        try {
+            const [approved, rejected] = await Promise.all([
+                api.get('/admin/events?status=APPROVED'),
+                api.get('/admin/events?status=REJECTED')
+            ])
+            setHistoryEvents([...approved.data, ...rejected.data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)))
+        } catch (err) {
+            console.error('Failed to fetch history:', err)
         } finally {
             setLoading(false)
         }
@@ -100,6 +118,10 @@ export default function AdminDashboard() {
     const [editingUser, setEditingUser] = useState(null)
     const [editForm, setEditForm] = useState({})
 
+    // Delete confirmation
+    const [deletingUser, setDeletingUser] = useState(null)
+    const [deleteLoading, setDeleteLoading] = useState(false)
+
     function startEdit(user) {
         setEditingUser(user)
         setEditForm({ ...user })
@@ -115,13 +137,22 @@ export default function AdminDashboard() {
         }
     }
 
-    async function handleDeleteUser(userId) {
-        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return
+    function confirmDeleteUser(user) {
+        setDeletingUser(user)
+    }
+
+    async function handleDeleteUser() {
+        if (!deletingUser) return
+        setDeleteLoading(true)
         try {
-            await api.delete(`/admin/users/${userId}`)
-            setUsers(users.filter(u => u.id !== userId))
+            await api.delete(`/admin/users/${deletingUser.id}`)
+            setUsers(users.filter(u => u.id !== deletingUser.id))
+            setDeletingUser(null)
         } catch (err) {
-            alert('Failed to delete user: ' + (err.response?.data?.detail || err.message))
+            console.error('Failed to delete user:', err)
+            setDeletingUser(null)
+        } finally {
+            setDeleteLoading(false)
         }
     }
 
@@ -175,6 +206,15 @@ export default function AdminDashboard() {
                         <Badge variant="secondary" className="ml-1">{clubs.length}</Badge>
                     )}
                 </Button>
+                <Button
+                    variant={activeTab === 'history' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setActiveTab('history')}
+                    className="gap-2"
+                >
+                    <History className="h-4 w-4" />
+                    History
+                </Button>
             </nav>
 
             {/* Approvals Tab */}
@@ -201,7 +241,7 @@ export default function AdminDashboard() {
                                                 <CardTitle className="flex items-center gap-2">
                                                     {event.event_name}
                                                     {event.risk_level === 'HIGH' ? (
-                                                        <Badge variant="destructive" className="flex items-center gap-1">
+                                                        <Badge variant="danger" className="flex items-center gap-1">
                                                             <AlertTriangle className="h-3 w-3" />
                                                             HIGH RISK
                                                         </Badge>
@@ -245,6 +285,15 @@ export default function AdminDashboard() {
                                                     )}
                                                 </div>
                                             </div>
+                                            {event.expiry_date && (
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <Clock className="h-4 w-4 text-slate-400" />
+                                                    <span className="text-slate-400">Expires:</span>
+                                                    <span className={`font-medium ${new Date(event.expiry_date) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
+                                                        {new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
+                                            )}
                                             <div className="flex gap-2 pt-2">
                                                 <Button
                                                     variant="green"
@@ -309,7 +358,7 @@ export default function AdminDashboard() {
                                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400" onClick={() => startEdit(student)}>
                                                             <Edit className="h-4 w-4" />
                                                         </Button>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => handleDeleteUser(student.id)}>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => confirmDeleteUser(student)}>
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     </div>
@@ -387,7 +436,7 @@ export default function AdminDashboard() {
                                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400" onClick={() => startEdit(club)}>
                                                             <Edit className="h-4 w-4" />
                                                         </Button>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => handleDeleteUser(club.id)}>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => confirmDeleteUser(club)}>
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     </div>
@@ -414,6 +463,104 @@ export default function AdminDashboard() {
                                                     )}
                                                 </div>
                                             </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* History Tab */}
+            {activeTab === 'history' && (
+                <>
+                    {loading ? (
+                        <div className="flex justify-center py-12">
+                            <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                        </div>
+                    ) : historyEvents.length === 0 ? (
+                        <Card>
+                            <CardContent className="py-12 text-center text-slate-400">
+                                <History className="mx-auto h-12 w-12 mb-4 text-slate-600" />
+                                <p>No event history yet</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="grid gap-4">
+                            {historyEvents.map(event => (
+                                <Card key={event.id} className={`transition-colors ${event.status === 'APPROVED' ? 'border-green-500/20 hover:border-green-500/40' : 'border-red-500/20 hover:border-red-500/40'
+                                    }`}>
+                                    <CardHeader className="pb-3">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <CardTitle className="flex items-center gap-2 text-lg">
+                                                    {event.event_name}
+                                                    <Badge variant={event.status === 'APPROVED' ? 'success' : 'danger'} className="flex items-center gap-1">
+                                                        {event.status === 'APPROVED' ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                                        {event.status}
+                                                    </Badge>
+                                                    {event.risk_level === 'HIGH' ? (
+                                                        <Badge variant="danger" className="flex items-center gap-1">
+                                                            <AlertTriangle className="h-3 w-3" />
+                                                            HIGH
+                                                        </Badge>
+                                                    ) : event.risk_level === 'MEDIUM' ? (
+                                                        <Badge variant="warning" className="flex items-center gap-1">
+                                                            <ShieldAlert className="h-3 w-3" />
+                                                            MEDIUM
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="success" className="flex items-center gap-1">
+                                                            <Shield className="h-3 w-3" />
+                                                            LOW
+                                                        </Badge>
+                                                    )}
+                                                </CardTitle>
+                                                {event.event_description && (
+                                                    <CardDescription className="mt-1">{event.event_description}</CardDescription>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-3">
+                                            <div className="flex flex-wrap gap-4 text-sm text-slate-400">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock className="h-3.5 w-3.5" />
+                                                    Created: {new Date(event.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </div>
+                                                {event.expiry_date && (
+                                                    <div className={`flex items-center gap-1.5 ${new Date(event.expiry_date) < new Date() ? 'text-red-400' : ''}`}>
+                                                        <CalendarX2 className="h-3.5 w-3.5" />
+                                                        {new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: {new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-slate-500 mb-1">Requested Attributes</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {event.requested_attributes.map((attr, i) => (
+                                                        <Badge key={i} variant="outline" className="text-xs">{attr}</Badge>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            {event.allowed_years?.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs text-slate-500 mb-1">Allowed Years</p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {event.allowed_years.map((year, i) => (
+                                                            <Badge key={i} variant="secondary" className="text-xs">Year {year}</Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {event.admin_comment && (
+                                                <div className="rounded-md bg-slate-800/50 border border-slate-700 p-3">
+                                                    <p className="text-xs text-slate-500 mb-1">Admin Comment</p>
+                                                    <p className="text-sm text-slate-300">{event.admin_comment}</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -474,6 +621,79 @@ export default function AdminDashboard() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={!!deletingUser} onOpenChange={() => !deleteLoading && setDeletingUser(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 mb-2">
+                            <Trash2 className="h-7 w-7 text-red-400" />
+                        </div>
+                        <DialogTitle className="text-center text-xl">Delete {deletingUser?.role === 'club' ? 'Club Lead' : 'Student'}</DialogTitle>
+                        <DialogDescription className="text-center text-slate-400">
+                            This will permanently remove this identity and all associated data.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-4 space-y-2">
+                        <div className="flex items-center gap-3">
+                            <div className={`size-10 rounded-full flex items-center justify-center flex-shrink-0 ${deletingUser?.role === 'club'
+                                ? 'bg-gradient-to-br from-purple-400 to-indigo-600'
+                                : 'bg-gradient-to-br from-green-400 to-emerald-600'
+                                }`}>
+                                <span className="text-sm font-bold text-white">
+                                    {(deletingUser?.name || deletingUser?.username || '?').charAt(0).toUpperCase()}
+                                </span>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-medium text-white truncate">{deletingUser?.name || deletingUser?.username}</p>
+                                <p className="text-xs text-slate-400">@{deletingUser?.username}</p>
+                            </div>
+                        </div>
+                        {(deletingUser?.email || deletingUser?.phone) && (
+                            <div className="border-t border-slate-700 pt-2 mt-2 space-y-1">
+                                {deletingUser?.email && (
+                                    <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                                        <Mail className="h-3 w-3" /> {deletingUser.email}
+                                    </p>
+                                )}
+                                {deletingUser?.phone && (
+                                    <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                                        <Phone className="h-3 w-3" /> {deletingUser.phone}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <p className="text-xs text-amber-400 bg-amber-400/10 px-3 py-2 rounded-md text-center">
+                        ⚠️ This action cannot be undone. All credentials, events, and logs will be removed.
+                    </p>
+                    <DialogFooter className="flex gap-3 sm:justify-center pt-2">
+                        <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setDeletingUser(null)}
+                            disabled={deleteLoading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            className="flex-1"
+                            onClick={handleDeleteUser}
+                            disabled={deleteLoading}
+                        >
+                            {deleteLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <>
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Edit User Dialog */}
             <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
                 <DialogContent>
