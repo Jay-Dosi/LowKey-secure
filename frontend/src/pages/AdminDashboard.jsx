@@ -285,15 +285,15 @@ export default function AdminDashboard() {
                                                     )}
                                                 </div>
                                             </div>
-                                            {event.expiry_date && (
-                                                <div className="flex items-center gap-2 text-sm">
-                                                    <Clock className="h-4 w-4 text-slate-400" />
-                                                    <span className="text-slate-400">Expires:</span>
-                                                    <span className={`font-medium ${new Date(event.expiry_date) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
-                                                        {new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                    </span>
-                                                </div>
-                                            )}
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <Clock className="h-4 w-4 text-slate-400" />
+                                                <span className="text-slate-400">Expires:</span>
+                                                <span className={`font-medium ${event.expiry_date && new Date(event.expiry_date) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
+                                                    {event.expiry_date
+                                                        ? new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                        : 'No expiry set'}
+                                                </span>
+                                            </div>
                                             <div className="flex gap-2 pt-2">
                                                 <Button
                                                     variant="green"
@@ -530,12 +530,12 @@ export default function AdminDashboard() {
                                                     <Clock className="h-3.5 w-3.5" />
                                                     Created: {new Date(event.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                 </div>
-                                                {event.expiry_date && (
-                                                    <div className={`flex items-center gap-1.5 ${new Date(event.expiry_date) < new Date() ? 'text-red-400' : ''}`}>
-                                                        <CalendarX2 className="h-3.5 w-3.5" />
-                                                        {new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: {new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                    </div>
-                                                )}
+                                                <div className={`flex items-center gap-1.5 ${event.expiry_date && new Date(event.expiry_date) < new Date() ? 'text-red-400' : ''}`}>
+                                                    <CalendarX2 className="h-3.5 w-3.5" />
+                                                    {event.expiry_date
+                                                        ? `${new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: ${new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                                                        : 'No expiry set'}
+                                                </div>
                                             </div>
                                             <div>
                                                 <p className="text-xs text-slate-500 mb-1">Requested Attributes</p>

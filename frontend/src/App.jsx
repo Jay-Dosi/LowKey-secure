@@ -8,7 +8,7 @@ import RequestDetails from './pages/RequestDetails'
 import ProfileDialog from '@/components/ProfileDialog'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
-import { ShieldCheck, LogOut, Loader2 } from 'lucide-react'
+import { LogOut, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import {
   Dialog,
@@ -58,7 +58,7 @@ function AppContent() {
       <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
         <nav className="container mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2">
-            <ShieldCheck className="h-7 w-7 text-green-400" aria-hidden="true" />
+            <img src="/log.png" alt="LowKey Secure" className="h-10 w-12" />
             <span className="text-lg font-bold tracking-tight">
               LOWKEY<span className="text-green-400">SECURE</span>
             </span>

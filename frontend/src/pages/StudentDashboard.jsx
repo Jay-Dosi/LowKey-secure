@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/api';
-import { Wallet, Shield, Sparkles, Loader2, AlertTriangle, CheckCircle, ShieldAlert, X } from 'lucide-react';
+import { Wallet, Shield, Sparkles, Loader2, AlertTriangle, CheckCircle, ShieldAlert, X, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -125,6 +125,14 @@ const StudentDashboard = () => {
                                                 </Badge>
                                             ))}
                                         </div>
+                                        {event.expiry_date && (
+                                            <div className="flex items-center gap-1.5 text-xs pt-1">
+                                                <Clock className="h-3.5 w-3.5 text-slate-400" />
+                                                <span className={new Date(event.expiry_date) < new Date() ? 'text-red-400 font-medium' : 'text-slate-400'}>
+                                                    {new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: {new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                        )}
                                     </CardContent>
                                 </Card>
                             </li>
@@ -199,6 +207,15 @@ const StudentDashboard = () => {
                                                 ))}
                                             </div>
                                         </div>
+                                        {event.expiry_date && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <Clock className="h-4 w-4 text-slate-400" />
+                                                <span className="text-slate-400">Expires:</span>
+                                                <span className={`font-medium ${new Date(event.expiry_date) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
+                                                    {new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                        )}
                                         <Button
                                             variant="blue"
                                             className="w-full"
@@ -241,16 +258,14 @@ const StudentDashboard = () => {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <div className={`rounded-lg p-4 ${
-                            selectedEvent?.risk_level === 'HIGH' ? 'bg-red-500/10' : 
-                            selectedEvent?.risk_level === 'MEDIUM' ? 'bg-amber-500/10' : 
-                            'bg-green-500/10'
-                        }`}>
-                            <p className={`text-sm ${
-                                selectedEvent?.risk_level === 'HIGH' ? 'text-red-400' : 
-                                selectedEvent?.risk_level === 'MEDIUM' ? 'text-amber-400' : 
-                                'text-green-400'
+                        <div className={`rounded-lg p-4 ${selectedEvent?.risk_level === 'HIGH' ? 'bg-red-500/10' :
+                            selectedEvent?.risk_level === 'MEDIUM' ? 'bg-amber-500/10' :
+                                'bg-green-500/10'
                             }`}>
+                            <p className={`text-sm ${selectedEvent?.risk_level === 'HIGH' ? 'text-red-400' :
+                                selectedEvent?.risk_level === 'MEDIUM' ? 'text-amber-400' :
+                                    'text-green-400'
+                                }`}>
                                 {selectedEvent?.risk_message}
                             </p>
                         </div>

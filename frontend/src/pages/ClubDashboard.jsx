@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 
-import { Calendar, Users, RefreshCw, Plus, Activity, Loader2, CheckCircle, Shield, AlertTriangle, Trash2, Edit, X } from 'lucide-react'
+import { Calendar, Users, RefreshCw, Plus, Activity, Loader2, CheckCircle, Shield, AlertTriangle, Trash2, Edit, X, Clock } from 'lucide-react'
 import {
     Dialog,
     DialogContent,
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 
 const ATTRIBUTES = [
-    { id: 'major', label: 'Major', pii: false },
+    { id: 'branch', label: 'Branch', pii: false },
     { id: 'year', label: 'Year', pii: false },
     { id: 'email', label: 'Email', pii: true },
     { id: 'phone', label: 'Phone', pii: true },
@@ -98,10 +98,8 @@ export default function ClubDashboard() {
                 event_name: eventName,
                 event_description: eventDescription,
                 requested_attributes: selectedAttrs,
-                allowed_years: selectedYears
-            }
-            if (expiryDate) {
-                payload.expiry_date = expiryDate
+                allowed_years: selectedYears,
+                expiry_date: expiryDate
             }
             await api.post('/club/events', payload)
             setEventName('')
@@ -195,19 +193,20 @@ export default function ClubDashboard() {
                             </fieldset>
 
                             <fieldset className="space-y-2">
-                                <Label htmlFor="expiry-date">Event Expiry Date</Label>
+                                <Label htmlFor="expiry-date">Event Expiry Date <span className="text-red-400">*</span></Label>
                                 <div className="relative">
                                     <Input
                                         id="expiry-date"
                                         type="datetime-local"
                                         value={expiryDate}
                                         onChange={(e) => setExpiryDate(e.target.value)}
+                                        required
                                         min={(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`; })()}
                                         className="focus:ring-purple-500 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                                     />
                                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-400 pointer-events-none" />
                                 </div>
-                                <p className="text-xs text-slate-500">Event will be auto-deleted after this date</p>
+                                <p className="text-xs text-slate-500">Required — Event will be auto-deleted after this date</p>
                             </fieldset>
 
                             <fieldset className="space-y-3">
@@ -290,7 +289,7 @@ export default function ClubDashboard() {
                                 type="submit"
                                 variant="purple"
                                 className="w-full"
-                                disabled={loading || selectedAttrs.length === 0}
+                                disabled={loading || selectedAttrs.length === 0 || !expiryDate}
                             >
                                 {loading ? (
                                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -359,6 +358,14 @@ export default function ClubDashboard() {
                                             <p className="mt-2 text-xs text-slate-500">
                                                 Permissions Taken: {event.requested_attributes.join(', ')} <br /> Years: {event.allowed_years?.join(', ') || 'All'}
                                             </p>
+                                            <div className="mt-2 flex items-center gap-1.5 text-xs">
+                                                <Clock className="h-3.5 w-3.5 text-slate-400" />
+                                                <span className={event.expiry_date && new Date(event.expiry_date) < new Date() ? 'text-red-400 font-medium' : 'text-slate-400'}>
+                                                    {event.expiry_date
+                                                        ? `${new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: ${new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                                                        : 'No expiry set'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </li>
                                 ))
@@ -414,7 +421,8 @@ export default function ClubDashboard() {
                                             <td className="px-4 py-3 text-slate-300">
                                                 {log.user ? (
                                                     <div className="space-y-1">
-                                                        <div className="font-semibold text-white">{log.user.name || 'Unknown'}</div>
+                                                        {log.user.name && <div className="font-semibold text-white">{log.user.name}</div>}
+                                                        {log.user.username && <div className="text-xs text-slate-400 font-mono">ID: {log.user.username}</div>}
                                                         {log.user.email && <div className="text-xs text-slate-400">{log.user.email}</div>}
                                                         {log.user.phone && <div className="text-xs text-slate-400">{log.user.phone}</div>}
                                                         {log.user.year && <Badge variant="outline" className="text-[10px] mr-1">Year {log.user.year}</Badge>}

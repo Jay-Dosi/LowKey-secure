@@ -40,6 +40,8 @@ export function AuthProvider({ children }) {
         localStorage.setItem('token', accessToken);
         localStorage.setItem('role', role);
         localStorage.setItem('user_id', userId);
+        // Clear stale dismissed events on fresh login
+        localStorage.removeItem('dismissedEvents');
 
         try {
             const decoded = jwtDecode(accessToken);
