@@ -1,11 +1,14 @@
 from sqlalchemy import Column, Integer, String, Boolean, JSON, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from database import Base
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+# IST offset: UTC+5:30
+IST = timezone(timedelta(hours=5, minutes=30))
 
 def get_ist_now():
-    """Get current UTC timestamp - simpler approach that works on Windows"""
-    return datetime.utcnow()
+    """Get current IST timestamp (Asia/Kolkata, UTC+5:30)"""
+    return datetime.now(IST).replace(tzinfo=None)  # Store as naive IST
 
 
 
@@ -60,6 +63,8 @@ class AccessRequest(Base):
     created_at = Column(DateTime, default=get_ist_now)
     expiry_date = Column(DateTime, nullable=True)  # Event expiry date
 
+    custom_fields = relationship("EventCustomField", back_populates="event", cascade="all, delete-orphan")
+
     creator = relationship("User", back_populates="requests_created")
     logs = relationship("AccessLog", back_populates="request")
     audits = relationship("ApprovalAudit", back_populates="request")
@@ -104,3 +109,32 @@ class UserAudit(Base):
     new_username = Column(String)
     timestamp = Column(DateTime, default=get_ist_now)
 
+
+class EventCustomField(Base):
+    __tablename__ = "event_custom_fields"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, ForeignKey("access_requests.id"))
+    label = Column(String)
+    normalized_label = Column(String) # For risk analysis comparison (lowercase)
+    field_type = Column(String) # short_text, long_text, number, dropdown, checkbox, date, url
+    required = Column(Boolean, default=False)
+    options = Column(JSON, nullable=True) # For dropdown/checkbox
+    risk_level = Column(String) # HIGH, MEDIUM, LOW
+    
+    event = relationship("AccessRequest", back_populates="custom_fields")
+    responses = relationship("StudentCustomFieldResponse", back_populates="field", cascade="all, delete-orphan")
+
+
+class StudentCustomFieldResponse(Base):
+    __tablename__ = "student_custom_field_responses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, ForeignKey("access_requests.id"))
+    student_id = Column(Integer, ForeignKey("users.id"))
+    field_id = Column(Integer, ForeignKey("event_custom_fields.id"))
+    response_value = Column(String) # JSON string if needed for multiple values
+    timestamp = Column(DateTime, default=get_ist_now)
+
+    field = relationship("EventCustomField", back_populates="responses")
+    student = relationship("User")

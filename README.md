@@ -16,7 +16,26 @@ Lowkey Secure enables students to prove eligibility for campus activities withou
 - **Anonymous Access Logging**: Students tracked by anonymized tokens, not PII
 - **Year-Based Filtering**: Events shown only to eligible student years
 
+
+## New Capabilities
+
+### Dynamic Custom Data Requests
+Leads can now request additional structured data from students during event creation.
+- **Supported Types**: Short Text, Long Text, Number, Dropdown, Checkbox, Date, URL.
+- **Risk Classification**: The system automatically analyzes custom field labels to detect potential privacy risks.
+    - **High Risk**: National IDs, Phone numbers, Biometrics, etc.
+    - **Medium Risk**: Name, Email, Social Media handles.
+    - **Low Risk**: T-shirt size, Preferences, etc.
+- **Consent-First**: Students see exactly what data is requested and its associated risk before consenting.
+
+### Privacy Risk Engine
+A centralized engine (`backend/privacy_engine.py`) now handles all risk analysis.
+- Automatically flags sensitive keywords.
+- Calculates aggregate event risk based on pre-defined attributes and custom fields.
+- Enforces "High Risk" warnings in the UI.
+
 ## Tech Stack
+
 - **Backend**: Python, FastAPI, SQLite, SQLAlchemy, Python-Jose (Crypto)
 - **Frontend**: React (Vite), Tailwind CSS, Lucide-React
 

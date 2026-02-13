@@ -74,6 +74,38 @@ def migrate():
         )
         """)
 
+        # 5. Create event_custom_fields if not exists
+        print("Creating event_custom_fields table...")
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS event_custom_fields (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER,
+            label TEXT,
+            normalized_label TEXT,
+            field_type TEXT,
+            required BOOLEAN,
+            options JSON,  -- text field storing JSON
+            risk_level TEXT,
+            FOREIGN KEY(event_id) REFERENCES access_requests(id)
+        )
+        """)
+
+        # 6. Create student_custom_field_responses if not exists
+        print("Creating student_custom_field_responses table...")
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS student_custom_field_responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER,
+            student_id INTEGER,
+            field_id INTEGER,
+            response_value TEXT,
+            timestamp DATETIME,
+            FOREIGN KEY(event_id) REFERENCES access_requests(id),
+            FOREIGN KEY(student_id) REFERENCES users(id),
+            FOREIGN KEY(field_id) REFERENCES event_custom_fields(id)
+        )
+        """)
+
         
         conn.commit()
         print("Migration completed successfully!")
