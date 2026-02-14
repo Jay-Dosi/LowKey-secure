@@ -260,6 +260,12 @@ export default function AdminDashboard() {
                                                 <CardDescription className="mt-2">
                                                     {event.risk_message}
                                                 </CardDescription>
+                                                {event.club_name && (
+                                                    <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-400">
+                                                        <Building2 className="h-3.5 w-3.5" />
+                                                        <span>Requested by <span className="text-slate-300 font-medium">{event.club_name}</span></span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </CardHeader>
@@ -519,6 +525,12 @@ export default function AdminDashboard() {
                                                 </CardTitle>
                                                 {event.event_description && (
                                                     <CardDescription className="mt-1">{event.event_description}</CardDescription>
+                                                )}
+                                                {event.club_name && (
+                                                    <div className="flex items-center gap-1.5 mt-1.5 text-xs text-slate-400">
+                                                        <Building2 className="h-3.5 w-3.5" />
+                                                        <span>By <span className="text-slate-300 font-medium">{event.club_name}</span></span>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>

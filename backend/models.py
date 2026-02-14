@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, JSON, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, JSON, ForeignKey, DateTime, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime, timedelta, timezone
@@ -69,6 +69,12 @@ class AccessRequest(Base):
     logs = relationship("AccessLog", back_populates="request")
     audits = relationship("ApprovalAudit", back_populates="request")
 
+    @property
+    def club_name(self):
+        if self.creator:
+            return self.creator.name or self.creator.username
+        return None
+
 
 class ApprovalAudit(Base):
     __tablename__ = "approval_audits"
@@ -137,4 +143,34 @@ class StudentCustomFieldResponse(Base):
     timestamp = Column(DateTime, default=get_ist_now)
 
     field = relationship("EventCustomField", back_populates="responses")
+    student = relationship("User")
+
+
+class StudentPrivacyMetrics(Base):
+    """
+    Monthly aggregated privacy risk metrics for each student.
+    One row per student per month (YYYY-MM). Idempotent — recomputed on demand.
+    """
+    __tablename__ = "student_privacy_metrics"
+    __table_args__ = (
+        UniqueConstraint("student_id", "month", name="uq_student_month"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    month = Column(String, nullable=False, index=True)  # Format: YYYY-MM
+
+    total_events = Column(Integer, default=0)
+    high_risk_count = Column(Integer, default=0)
+    medium_risk_count = Column(Integer, default=0)
+    low_risk_count = Column(Integer, default=0)
+    unique_org_count = Column(Integer, default=0)
+    repeated_high_attr_count = Column(Integer, default=0)
+
+    cumulative_risk_score = Column(Integer, default=0)
+    exposure_entropy_score = Column(Float, default=0.0)
+    risk_velocity = Column(Float, default=0.0)
+
+    created_at = Column(DateTime, default=get_ist_now)
+
     student = relationship("User")

@@ -1,64 +1,92 @@
-# Lowkey Secure - Privacy-First Event Access System
+# LowKey Secure — Privacy-First Event Access System
 
-**Consent-First Identity Fabric** for campus events with strict RBAC, event approval workflows, and anonymous attendance tracking.
+> **Consent-First Identity Fabric** for campus events with strict RBAC, event approval workflows, consent-based PII reveal, and anonymous attendance tracking.
 
-## Overview
+![Tech Stack](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React_19-61DAFB?style=flat&logo=react&logoColor=black)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat&logo=sqlite&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat&logo=tailwind-css&logoColor=white)
 
-Lowkey Secure enables students to prove eligibility for campus activities without revealing sensitive PII. The system implements a three-tier workflow:
-- **Leads** create events and request specific attributes
-- **Admins** review and approve/reject events based on privacy risk
-- **Students** consent to approved events and access them anonymously
+---
 
-### Key Features
-- **Event Approval Pipeline**: Admin review queue with mandatory comments for HIGH risk events
-- **Privacy Guardian Engine**: Automatic risk analysis (HIGH/LOW) based on requested attributes
-- **Verifiable Credentials**: Cryptographically signed student credentials (RSA-256)
-- **Anonymous Access Logging**: Students tracked by anonymized tokens, not PII
-- **Year-Based Filtering**: Events shown only to eligible student years
+## 📖 Overview
 
+LowKey Secure enables students to prove eligibility for campus events **without exposing sensitive PII unless they explicitly consent**. The platform implements a three-tier workflow:
 
-## New Capabilities
+| Role          | Capabilities                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Club Lead** | Create events, request specific attributes & custom data fields, set expiry dates, view consent-based attendance   |
+| **Admin**     | Review & approve/reject events based on privacy risk, manage users (edit/delete), view event history & audit trail |
+| **Student**   | View approved events filtered by year, review risk levels, give consent, dismiss unwanted events                   |
 
-### Dynamic Custom Data Requests
-Leads can now request additional structured data from students during event creation.
-- **Supported Types**: Short Text, Long Text, Number, Dropdown, Checkbox, Date, URL.
-- **Risk Classification**: The system automatically analyzes custom field labels to detect potential privacy risks.
-    - **High Risk**: National IDs, Phone numbers, Biometrics, etc.
-    - **Medium Risk**: Name, Email, Social Media handles.
-    - **Low Risk**: T-shirt size, Preferences, etc.
-- **Consent-First**: Students see exactly what data is requested and its associated risk before consenting.
+---
 
-### Privacy Risk Engine
-A centralized engine (`backend/privacy_engine.py`) now handles all risk analysis.
-- Automatically flags sensitive keywords.
-- Calculates aggregate event risk based on pre-defined attributes and custom fields.
-- Enforces "High Risk" warnings in the UI.
+## ✨ Key Features
 
-## Tech Stack
+### 🔒 Privacy & Consent Engine
+- **Three-Tier Risk Classification** — Events auto-classified as `HIGH`, `MEDIUM`, or `LOW` risk based on requested attributes and custom fields
+- **Consent-Based PII Reveal** — Club leads only see student data the student explicitly consented to share (name, email, branch, etc.)
+- **Anonymized Attendance** — Students tracked by SHA-256 hashed tokens, not user IDs
+- **Centralized Privacy Engine** (`privacy_engine.py`) — Keyword-based risk analysis covering 40+ sensitive data patterns
 
-- **Backend**: Python, FastAPI, SQLite, SQLAlchemy, Python-Jose (Crypto)
-- **Frontend**: React (Vite), Tailwind CSS, Lucide-React
+### 📋 Event Lifecycle
+- **Event Approval Pipeline** — Admin review queue with mandatory comments for HIGH risk and rejections
+- **Mandatory Expiry Dates** — Every event requires an expiry date; expired events are auto-cleaned on startup and admin fetch
+- **Event History Tab** — Admin can view all approved/rejected events with timestamps and comments
+- **Edit Resets to Pending** — Any club lead edit automatically resets event status for re-review
 
-## Prerequisites
+### 🎛️ Dynamic Custom Data Fields
+- **Supported Types**: Short Text, Long Text, Number, Dropdown, Checkbox, Date, URL
+- **Auto Risk Classification** — Custom field labels are analyzed against HIGH/MEDIUM/LOW risk keyword lists
+- **Required Field Validation** — Club leads can mark fields as required; backend enforces before consent
+
+### 👥 User Management
+- **Auto-Generated Usernames** — Random role-based username generation for students and club leads
+- **Profile Dialog** — View your profile info from the navbar
+- **Admin User Management** — Edit user details, delete users with full cascade cleanup (events, logs, audits, credentials)
+- **Delete Confirmation Dialog** — Safe deletion with confirmation modal
+
+### 🛡️ Authentication & Security
+- **JWT Authentication** — 24-hour token expiry with HS256 signing
+- **Bcrypt Password Hashing** — Industry-standard password security
+- **RSA-256 Credential Signing** — Cryptographically signed verifiable credentials
+- **Role-Based Access Control** — Strict endpoint-level RBAC for admin, club, and student roles
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer             | Technology                                                                               |
+| ----------------- | ---------------------------------------------------------------------------------------- |
+| **Backend**       | Python 3.8+, FastAPI, SQLAlchemy, SQLite                                                 |
+| **Auth/Crypto**   | python-jose (JWT), passlib + bcrypt, RSA key pairs                                       |
+| **Frontend**      | React 19 (Vite 7), Tailwind CSS 3, Radix UI primitives                                   |
+| **UI Components** | Custom shadcn/ui (Badge, Button, Card, Dialog, Input, Select, Checkbox, Textarea, Label) |
+| **Icons**         | Lucide React                                                                             |
+| **HTTP Client**   | Axios with interceptors (auto token injection, 401 redirect)                             |
+
+---
+
+## 🚀 Setup & Run
+
+### Prerequisites
 - Python 3.8+
-- Node.js & npm
+- Node.js 18+ & npm
 
-## 🚀 Setup & Run Instructions
-
-### 1. Backend Setup
+### 1. Backend
 
 ```bash
-cd lowkey-secure\backend
+cd backend
 
 # Create and activate virtual environment
-python -m venv venv
-.\venv\Scripts\Activate  # Windows PowerShell
-# source venv/bin/activate  # Mac/Linux
+python3 -m venv venv
+source venv/bin/activate        # macOS/Linux
+# .\venv\Scripts\Activate       # Windows PowerShell
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run database migration (if existing DB)
+# Run database migration (if upgrading existing DB)
 python migrate_db.py
 
 # Start server
@@ -66,11 +94,12 @@ uvicorn main:app --reload
 ```
 
 Backend API: `http://localhost:8000`
+Swagger Docs: `http://localhost:8000/docs`
 
-### 2. Frontend Setup
+### 2. Frontend
 
 ```bash
-cd lowkey-secure\frontend
+cd frontend
 
 # Install dependencies
 npm install
@@ -81,133 +110,178 @@ npm run dev
 
 Frontend: `http://localhost:5173`
 
-## 🧪 Testing the Complete Workflow
+---
+
+## 🧪 Workflow Guide
 
 ### Step 1: Register Users
-Go to `http://localhost:5173/register` and create:
-- **Admin** (Role: University Admin)
-- **Lead** (Role: Club Lead)
-- **Student** (Role: Student)
+Navigate to `/register` and create accounts for each role:
+- **Admin** — Must provide a custom username
+- **Club Lead** — Provide name, email, phone, year, club/org name
+- **Student** — Provide name, email, phone, year, branch
 
-### Step 2: Issue Credential (Admin)
-1. Login as **Admin**
-2. Go to Admin Dashboard
-3. Issue credential to student with:
-   - Name, Major, **Year** (e.g., "1", "2", "3", "4")
-   - Student ID, University
+> Usernames can be auto-generated or manually chosen for students and club leads.
 
-### Step 3: Create Event (Lead)
-1. Login as **Lead**
-2. Create new event:
-   - Event name: "Hackathon Check-in"
-   - Select **Allowed Years**: e.g., Year 1, Year 2
-   - Select **Attributes**: Try selecting "email" or "name" to trigger HIGH RISK
-3. Submit for approval (status: PENDING)
+### Step 2: Create Event (Club Lead)
+1. Login as **Club Lead**
+2. Fill in event name, description, and **expiry date** (required)
+3. Select **allowed years** (or leave empty for all years)
+4. Choose **predefined attributes** (branch, year, email, phone, name, student_id)
+5. Add optional **custom data fields** (text, dropdown, etc.)
+6. Review the real-time **risk preview** before submitting
 
-### Step 4: Approve Event (Admin)
-1. Login as **Admin**
-2. View **Approval Queue**
-3. Review event:
-   - **LOW RISK**: Approve (optional comment)
-   - **HIGH RISK**: Approve with **mandatory justification comment**
-   - **REJECT**: Requires comment
-4. Event status changes to APPROVED
+### Step 3: Approve/Reject Event (Admin)
+1. Login as **Admin** → **Approvals** tab
+2. Review each event's risk level, requested attributes, and expiry date
+3. Actions:
+   - ✅ **LOW/MEDIUM risk** → Approve with optional comment
+   - ✅ **HIGH risk** → Approve with **mandatory justification**
+   - ❌ **Reject** → Requires comment explaining reason
 
-### Step 5: Student Consent & Access
-1. Login as **Student** (with matching year)
-2. View **Available Events** (filtered by year)
-3. Click event → Review risk badge and attributes
-4. Click **"I Consent"**
-5. See **"Access Granted"** success animation
+### Step 4: Student Consent
+1. Login as **Student** → View **Available Events** (filtered by year eligibility)
+2. Review risk badge, risk message, requested attributes, and expiry date
+3. Click **"Give Consent"** → Review details in consent modal
+4. Fill in any **required custom fields**
+5. Confirm → **"Access Granted!"** animation
 
-### Step 6: Verify Attendance (Lead)
-1. Return to **Lead Dashboard**
-2. Click on approved event
-3. View **Live Attendance Feed**:
-   - Identity: "Anonymous Student"
-   - Timestamp: IST
-   - Token: Anonymized hash (not user ID)
+### Step 5: View Attendance (Club Lead)
+1. Go to **My Events** → Click the attendance icon on an approved event
+2. View **Live Attendance Feed** showing:
+   - ✅ Consented PII (only what the student agreed to share)
+   - 🕐 Timestamp (IST)
+   - 🔑 Anonymized token
+   - 📝 Custom field responses
 
-## 🔒 Privacy & Security Features
-
-### RBAC Enforcement
-- **Admin**: Issue credentials, approve/reject events, view audit logs
-- **Lead**: Create/edit/delete own events, view anonymized attendance
-- **Student**: Self-register, view approved events for their year, consent anonymously
-
-### Risk Analysis
-- **HIGH RISK PII**: name, email, phone, student_id, photo, ssn, address
-- **LOW RISK**: major, year, dorm
-- HIGH risk events require Admin override with justification
-
-### Anonymization
-- `AccessLog` stores `anonymized_token` (SHA-256 hash) instead of `user_id`
-- Leads see only: "Anonymous Student" + timestamp + token
-- Admin can view raw mappings via audit API (not exposed in UI)
-
-### Audit Trail
-- All Admin approvals/rejections logged in `ApprovalAudit` table
-- Includes: admin_id, event_id, action, comment, timestamp
-
-## 📋 Manual QA Checklist
-
-- [ ] Admin can approve LOW risk event without comment
-- [ ] Admin **cannot** approve HIGH risk event without comment
-- [ ] Admin **cannot** reject any event without comment
-- [ ] Lead can create event with year restrictions
-- [ ] Lead can edit event (status resets to PENDING)
-- [ ] Lead can delete own events
-- [ ] Lead **cannot** edit/delete other leads' events
-- [ ] Student sees only APPROVED events
-- [ ] Student sees only events matching their year
-- [ ] Student **cannot** access PENDING/REJECTED events
-- [ ] Consent logs anonymized token (not user_id)
-- [ ] Attendance feed shows "Anonymous Student"
+---
 
 ## 🗂️ Project Structure
 
 ```
-lowkey-secure/
+LowKey-secure/
 ├── backend/
-│   ├── main.py           # FastAPI routes
-│   ├── models.py         # SQLAlchemy models
-│   ├── schemas.py        # Pydantic schemas
-│   ├── auth.py           # JWT authentication
-│   ├── utils.py          # Risk analysis, crypto
-│   ├── migrate_db.py     # Database migration script
+│   ├── main.py              # FastAPI routes & endpoints
+│   ├── models.py            # SQLAlchemy ORM models (8 tables)
+│   ├── schemas.py           # Pydantic request/response schemas
+│   ├── auth.py              # JWT auth, bcrypt, token creation
+│   ├── utils.py             # RSA signing, phone/email validation
+│   ├── privacy_engine.py    # Centralized risk classification engine
+│   ├── username_gen.py      # Random username generator
+│   ├── database.py          # SQLite engine & session
+│   ├── migrate_db.py        # Database migration script
 │   └── requirements.txt
 ├── frontend/
-│   └── src/
-│       ├── pages/
-│       │   ├── AdminDashboard.jsx    # Approval Queue
-│       │   ├── ClubDashboard.jsx     # Event Builder
-│       │   └── StudentDashboard.jsx  # Event Feed
-│       └── api.js
-└── README.md
+│   ├── public/
+│   │   └── log.png          # App logo
+│   ├── src/
+│   │   ├── App.jsx          # Router, navbar, auth guards
+│   │   ├── api.js           # Axios instance with interceptors
+│   │   ├── main.jsx         # React entry point
+│   │   ├── index.css        # Global styles (dark theme)
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx   # JWT decode, login/logout state
+│   │   ├── components/
+│   │   │   ├── ProfileDialog.jsx # User profile modal
+│   │   │   ├── RiskBadge.jsx     # Risk level badge component
+│   │   │   └── ui/              # shadcn/ui primitives
+│   │   ├── pages/
+│   │   │   ├── Login.jsx
+│   │   │   ├── Register.jsx
+│   │   │   ├── AdminDashboard.jsx    # Approvals, Users, History tabs
+│   │   │   ├── ClubDashboard.jsx     # Event builder & attendance
+│   │   │   ├── StudentDashboard.jsx  # Event feed & consent
+│   │   │   └── RequestDetails.jsx
+│   │   └── lib/
+│   │       └── utils.js     # cn() utility for Tailwind
+│   └── package.json
+├── README.md
+└── .gitignore
 ```
+
+---
 
 ## 🔧 API Endpoints
 
-### Admin
-- `POST /admin/issue-credential` - Issue credential to student
-- `GET /admin/events?status=PENDING` - Get approval queue
-- `POST /admin/events/{id}/review` - Approve/Reject event
+### Auth
+| Method | Endpoint                  | Description              |
+| ------ | ------------------------- | ------------------------ |
+| `GET`  | `/auth/generate-username` | Generate random username |
+| `POST` | `/auth/register`          | Register new user        |
+| `POST` | `/auth/login`             | Login & get JWT token    |
+| `GET`  | `/user/profile`           | Get current user profile |
 
-### Lead (Club)
-- `POST /club/events` - Create event
-- `PUT /club/events/{id}` - Edit event
-- `DELETE /club/events/{id}` - Delete event
-- `GET /club/events` - Get my events
-- `GET /club/events/{id}/logs` - Get anonymized attendance
+### Admin
+| Method   | Endpoint                    | Description                            |
+| -------- | --------------------------- | -------------------------------------- |
+| `POST`   | `/admin/issue-credential`   | Issue credential to student            |
+| `GET`    | `/admin/events?status=`     | Get events (PENDING/APPROVED/REJECTED) |
+| `POST`   | `/admin/events/{id}/review` | Approve or reject event                |
+| `GET`    | `/admin/users`              | List all users                         |
+| `PUT`    | `/admin/users/{id}`         | Update user details                    |
+| `DELETE` | `/admin/users/{id}`         | Delete user (full cascade)             |
+| `GET`    | `/admin/credentials`        | List all credentials                   |
+
+### Club Lead
+| Method   | Endpoint                 | Description                                    |
+| -------- | ------------------------ | ---------------------------------------------- |
+| `POST`   | `/club/events`           | Create event with attributes & custom fields   |
+| `PUT`    | `/club/events/{id}`      | Edit event (resets to PENDING)                 |
+| `DELETE` | `/club/events/{id}`      | Delete own event                               |
+| `GET`    | `/club/events`           | List own events                                |
+| `GET`    | `/club/events/{id}/logs` | Consent-based attendance with custom responses |
+| `GET`    | `/club/calendar`         | View all approved events (read-only)           |
 
 ### Student
-- `GET /student/credentials` - Get my credentials
-- `GET /student/events` - Get approved events (filtered by year)
-- `POST /student/events/{id}/consent` - Consent to event
+| Method | Endpoint                       | Description                              |
+| ------ | ------------------------------ | ---------------------------------------- |
+| `GET`  | `/student/credentials`         | Get own credentials                      |
+| `GET`  | `/student/events`              | Approved events (year-filtered)          |
+| `GET`  | `/student/events/{id}`         | Event details (eligibility checked)      |
+| `GET`  | `/student/registered-events`   | Events already consented to              |
+| `POST` | `/student/events/{id}/consent` | Give consent with custom field responses |
+
+---
+
+## 🗃️ Database Schema
+
+| Table                            | Purpose                                            |
+| -------------------------------- | -------------------------------------------------- |
+| `users`                          | All users (admin, club, student) with PII fields   |
+| `credentials`                    | RSA-signed verifiable credentials                  |
+| `access_requests`                | Events with attributes, risk level, status, expiry |
+| `approval_audits`                | Admin approve/reject actions with comments         |
+| `access_logs`                    | Anonymized attendance with consented attributes    |
+| `user_audits`                    | User modification tracking                         |
+| `event_custom_fields`            | Dynamic form fields per event                      |
+| `student_custom_field_responses` | Student answers to custom fields                   |
+
+---
+
+## 🔒 Privacy & Security Design
+
+### Risk Classification
+| Level      | Triggers                                                       | Admin Requirement               |
+| ---------- | -------------------------------------------------------------- | ------------------------------- |
+| **HIGH**   | phone, student_id, aadhaar, passport, bank details, biometrics | Mandatory justification comment |
+| **MEDIUM** | name, email, social media, DOB, gender                         | Optional comment                |
+| **LOW**    | branch, year, t-shirt size, preferences                        | Optional comment                |
+
+### Consent-Based PII Reveal
+- When a student consents to an event, the system stores which attributes they agreed to share (`consented_attrs`)
+- Club leads viewing attendance logs only see the data fields the student consented to — no more, no less
+- Attribute mapping ensures frontend names resolve to correct database columns (`student_id` → `username`, etc.)
+
+### Anonymization
+- Access logs use SHA-256 hashed tokens (`user_id + event_id + timestamp`)
+- Deduplication check prevents multiple registrations per student per event
+- Expired events are automatically purged on server startup
+
+---
 
 ## 📝 Notes
 
-- Database: SQLite (`lowkey.db`)
-- RSA keys: Auto-generated and persisted (`private_key.pem`, `public_key.pem`)
-- Notifications: Simulated via console logs
-- Timezone: IST (Asia/Kolkata)
+- **Database**: SQLite (`backend/lowkey.db`) — auto-created on first run
+- **RSA Keys**: Auto-generated and persisted (`private_key.pem`, `public_key.pem`)
+- **Timezone**: IST (Asia/Kolkata, UTC+5:30) — timestamps stored as naive IST
+- **Notifications**: Simulated via server console logs
+- **Token Expiry**: JWT tokens valid for 24 hours
