@@ -89,6 +89,7 @@ class ApprovalAction(BaseModel):
 class RequestOut(BaseModel):
     id: int
     club_id: int
+    club_name: Optional[str] = None
     event_name: str
     event_description: Optional[str]
     requested_attributes: List[str]
@@ -144,3 +145,36 @@ class AccessLogOut(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+# ── Privacy Report Schemas ─────────────────────────────────────────────
+
+class PrivacyMetricsOut(BaseModel):
+    """Aggregated monthly privacy metrics for a student."""
+    month: str
+    total_events: int
+    high_risk_count: int
+    medium_risk_count: int
+    low_risk_count: int
+    unique_org_count: int
+    repeated_high_attr_count: int
+    cumulative_risk_score: int
+    exposure_entropy_score: float
+    risk_velocity: float
+
+    class Config:
+        from_attributes = True
+
+
+class RuleAnalysis(BaseModel):
+    """Rule-based risk advisory output."""
+    risk_band: str  # "Low", "Moderate", or "High"
+    flags: List[str]
+    recommendations: List[str]
+
+
+class PrivacyReportOut(BaseModel):
+    """Full privacy report returned to the student."""
+    metrics: PrivacyMetricsOut
+    rule_analysis: RuleAnalysis
+    ai_summary: str

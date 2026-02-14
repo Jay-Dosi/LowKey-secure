@@ -5,6 +5,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import ClubDashboard from './pages/ClubDashboard'
 import StudentDashboard from './pages/StudentDashboard'
 import RequestDetails from './pages/RequestDetails'
+import PrivacyReport from './pages/PrivacyReport'
 import ProfileDialog from '@/components/ProfileDialog'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -99,6 +100,7 @@ function AppContent() {
           <Route path="/club" element={<PrivateRoute allowedRoles={['club']}><ClubDashboard /></PrivateRoute>} />
           <Route path="/student" element={<PrivateRoute allowedRoles={['student']}><StudentDashboard /></PrivateRoute>} />
           <Route path="/student/request/:id" element={<PrivateRoute allowedRoles={['student']}><RequestDetails /></PrivateRoute>} />
+          <Route path="/student/privacy-report" element={<PrivateRoute allowedRoles={['student']}><PrivacyReport /></PrivateRoute>} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </main>

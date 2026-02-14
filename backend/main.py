@@ -1,9 +1,13 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, timedelta
 import models, schemas, database, auth, utils, username_gen, privacy_engine
+import privacy_analytics, ai_advisor
 from models import get_ist_now
 import re
 
@@ -721,3 +725,75 @@ def consent_to_event(
     db.commit()
     
     return {"status": "success", "message": "Access granted", "token": anonymized_token}
+
+
+# ── Student Privacy Report ─────────────────────────────────────────────
+
+@app.get("/student/privacy-report", response_model=schemas.PrivacyReportOut)
+def get_privacy_report(
+    month: str = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """
+    Generate a monthly privacy risk report for the authenticated student.
+
+    Query Parameters
+    ----------------
+    month : str, optional
+        Target month in ``YYYY-MM`` format.  Defaults to the current month.
+
+    Returns
+    -------
+    PrivacyReportOut
+        ``{metrics, rule_analysis, ai_summary}``
+    """
+    if current_user.role != "student":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can access privacy reports.",
+        )
+
+    # Default to current month if not provided
+    if not month:
+        month = get_ist_now().strftime("%Y-%m")
+
+    # Validate format
+    try:
+        datetime.strptime(month, "%Y-%m")
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid month format. Use YYYY-MM (e.g. 2026-02).",
+        )
+
+    # 1. Compute / refresh metrics (idempotent)
+    metrics = privacy_analytics.compute_monthly_metrics(
+        student_id=current_user.id,
+        month=month,
+        db=db,
+    )
+
+    # 2. Rule-based advisory
+    rule_analysis = privacy_analytics.generate_rule_based_advice(metrics)
+
+    # 3. AI summary (aggregated metrics only — no PII)
+    metrics_dict = {
+        "month": metrics.month,
+        "total_events": metrics.total_events,
+        "high_risk_count": metrics.high_risk_count,
+        "medium_risk_count": metrics.medium_risk_count,
+        "low_risk_count": metrics.low_risk_count,
+        "unique_org_count": metrics.unique_org_count,
+        "repeated_high_attr_count": metrics.repeated_high_attr_count,
+        "cumulative_risk_score": metrics.cumulative_risk_score,
+        "exposure_entropy_score": metrics.exposure_entropy_score,
+        "risk_velocity": metrics.risk_velocity,
+    }
+    ai_summary = ai_advisor.generate_ai_summary(metrics_dict)
+
+    return schemas.PrivacyReportOut(
+        metrics=schemas.PrivacyMetricsOut(**metrics_dict),
+        rule_analysis=schemas.RuleAnalysis(**rule_analysis),
+        ai_summary=ai_summary,
+    )
