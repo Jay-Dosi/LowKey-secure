@@ -290,7 +290,7 @@ export default function AdminDashboard() {
                                                 <span className="text-slate-400">Expires:</span>
                                                 <span className={`font-medium ${event.expiry_date && new Date(event.expiry_date) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
                                                     {event.expiry_date
-                                                        ? new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                        ? new Date(event.expiry_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                                                         : 'No expiry set'}
                                                 </span>
                                             </div>
@@ -528,12 +528,12 @@ export default function AdminDashboard() {
                                             <div className="flex flex-wrap gap-4 text-sm text-slate-400">
                                                 <div className="flex items-center gap-1.5">
                                                     <Clock className="h-3.5 w-3.5" />
-                                                    Created: {new Date(event.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    Created: {new Date(event.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })}
                                                 </div>
                                                 <div className={`flex items-center gap-1.5 ${event.expiry_date && new Date(event.expiry_date) < new Date() ? 'text-red-400' : ''}`}>
                                                     <CalendarX2 className="h-3.5 w-3.5" />
                                                     {event.expiry_date
-                                                        ? `${new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: ${new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                                                        ? `${new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: ${new Date(event.expiry_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })}`
                                                         : 'No expiry set'}
                                                 </div>
                                             </div>

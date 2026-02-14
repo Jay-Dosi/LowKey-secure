@@ -41,6 +41,7 @@ export default function ClubDashboard() {
     const [selectedYears, setSelectedYears] = useState([])
     const [expiryDate, setExpiryDate] = useState('')
     const [riskPreview, setRiskPreview] = useState(null)
+    const [customFields, setCustomFields] = useState([]) // Array of { label, field_type, required, options }
 
     const fetchEvents = useCallback(async () => {
         try {
@@ -75,10 +76,18 @@ export default function ClubDashboard() {
 
     useEffect(() => {
         // Analyze risk in real-time
-        const mediumRiskAttrs = ['name', 'email']
-        const highRiskAttrs = ['phone', 'student_id', 'photo', 'ssn', 'address']
-        const hasHighRisk = selectedAttrs.some(attr => highRiskAttrs.includes(attr))
-        const hasMediumRisk = selectedAttrs.some(attr => mediumRiskAttrs.includes(attr))
+        const mediumRiskAttrs = ['name', 'email', 'social', 'github', 'linkedin', 'workplace', 'dob']
+        const highRiskAttrs = ['phone', 'student_id', 'photo', 'ssn', 'address', 'aadhaar', 'passport', 'bank']
+
+        let hasHighRisk = selectedAttrs.some(attr => highRiskAttrs.includes(attr))
+        let hasMediumRisk = selectedAttrs.some(attr => mediumRiskAttrs.includes(attr))
+
+        // Analyze Custom Fields
+        customFields.forEach(field => {
+            const labelLower = field.label.toLowerCase()
+            if (highRiskAttrs.some(k => labelLower.includes(k))) hasHighRisk = true
+            else if (mediumRiskAttrs.some(k => labelLower.includes(k))) hasMediumRisk = true
+        })
 
         if (hasHighRisk) {
             setRiskPreview('HIGH')
@@ -87,7 +96,7 @@ export default function ClubDashboard() {
         } else {
             setRiskPreview('LOW')
         }
-    }, [selectedAttrs])
+    }, [selectedAttrs, customFields])
 
     async function handleSubmit(e) {
         e.preventDefault()
@@ -99,7 +108,8 @@ export default function ClubDashboard() {
                 event_description: eventDescription,
                 requested_attributes: selectedAttrs,
                 allowed_years: selectedYears,
-                expiry_date: expiryDate
+                expiry_date: expiryDate,
+                custom_fields: customFields
             }
             await api.post('/club/events', payload)
             setEventName('')
@@ -107,6 +117,7 @@ export default function ClubDashboard() {
             setSelectedAttrs([])
             setSelectedYears([])
             setExpiryDate('')
+            setCustomFields([])
             fetchEvents()
         } catch (err) {
             alert('Error creating event: ' + (err.response?.data?.detail || err.message))
@@ -141,6 +152,20 @@ export default function ClubDashboard() {
                 ? prev.filter(y => y !== year)
                 : [...prev, year]
         )
+    }
+
+    function addCustomField() {
+        setCustomFields([...customFields, { label: '', field_type: 'short_text', required: false, options: [] }])
+    }
+
+    function updateCustomField(index, key, value) {
+        const updated = [...customFields]
+        updated[index][key] = value
+        setCustomFields(updated)
+    }
+
+    function removeCustomField(index) {
+        setCustomFields(customFields.filter((_, i) => i !== index))
     }
 
     return (
@@ -259,6 +284,85 @@ export default function ClubDashboard() {
                                 </ul>
                             </fieldset>
 
+                            <fieldset className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Label>Custom Data Requests</Label>
+                                    <Button type="button" variant="ghost" size="sm" onClick={addCustomField} className="h-6 text-xs text-purple-400">
+                                        <Plus className="mr-1 h-3 w-3" /> Add Field
+                                    </Button>
+                                </div>
+                                {customFields.length > 0 && (
+                                    <div className="space-y-3">
+                                        {customFields.map((field, index) => (
+                                            <div key={index} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 relative group">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => removeCustomField(index)}
+                                                    className="absolute top-2 right-2 h-6 w-6 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </Button>
+                                                <div className="grid gap-3">
+                                                    <div>
+                                                        <Label htmlFor={`cf-label-${index}`} className="text-xs text-slate-400">Field Label</Label>
+                                                        <Input
+                                                            id={`cf-label-${index}`}
+                                                            value={field.label}
+                                                            onChange={(e) => updateCustomField(index, 'label', e.target.value)}
+                                                            placeholder="e.g. T-Shirt Size"
+                                                            className="h-8 text-sm"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <div className="flex-1">
+                                                            <Label htmlFor={`cf-type-${index}`} className="text-xs text-slate-400">Type</Label>
+                                                            <select
+                                                                id={`cf-type-${index}`}
+                                                                value={field.field_type}
+                                                                onChange={(e) => updateCustomField(index, 'field_type', e.target.value)}
+                                                                className="w-full h-8 rounded-md border border-slate-800 bg-slate-900 px-3 py-1 text-sm text-slate-300 focus:outline-none focus:ring-1 focus:ring-purple-500 [&>option]:bg-slate-900 [&>option]:text-slate-300"
+                                                            >
+                                                                <option value="short_text">Short Text</option>
+                                                                <option value="long_text">Long Text</option>
+                                                                <option value="number">Number</option>
+                                                                <option value="dropdown">Dropdown</option>
+                                                                <option value="checkbox">Checkbox</option>
+                                                                <option value="date">Date</option>
+                                                                <option value="url">URL</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="flex items-end pb-1">
+                                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                                <Checkbox
+                                                                    checked={field.required}
+                                                                    onCheckedChange={(checked) => updateCustomField(index, 'required', checked)}
+                                                                />
+                                                                <span className="text-xs text-slate-300">Required</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    {(field.field_type === 'dropdown' || field.field_type === 'checkbox') && (
+                                                        <div>
+                                                            <Label htmlFor={`cf-options-${index}`} className="text-xs text-slate-400">Options (comma separated)</Label>
+                                                            <Input
+                                                                id={`cf-options-${index}`}
+                                                                value={Array.isArray(field.options) ? field.options.join(', ') : ''}
+                                                                onChange={(e) => updateCustomField(index, 'options', e.target.value.split(',').map(s => s.trim()))}
+                                                                placeholder="Option 1, Option 2"
+                                                                className="h-8 text-sm"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </fieldset>
+
                             {riskPreview && (
                                 <div className={cn(
                                     "rounded-lg p-3 flex items-center gap-2",
@@ -362,7 +466,7 @@ export default function ClubDashboard() {
                                                 <Clock className="h-3.5 w-3.5 text-slate-400" />
                                                 <span className={event.expiry_date && new Date(event.expiry_date) < new Date() ? 'text-red-400 font-medium' : 'text-slate-400'}>
                                                     {event.expiry_date
-                                                        ? `${new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: ${new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                                                        ? `${new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: ${new Date(event.expiry_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
                                                         : 'No expiry set'}
                                                 </span>
                                             </div>
@@ -432,6 +536,7 @@ export default function ClubDashboard() {
                                                     <span className="italic text-slate-500">Anonymous Student</span>
                                                 )}
                                             </td>
+
                                             <td className="px-4 py-3 font-mono text-slate-400">
                                                 {/* 24-hour format with real-time date */}
                                                 {new Date(log.timestamp).toLocaleString('en-IN', {
@@ -439,8 +544,20 @@ export default function ClubDashboard() {
                                                     day: '2-digit', month: 'short', year: 'numeric',
                                                     hour: '2-digit', minute: '2-digit', hour12: false
                                                 })}
+                                                {/* Custom Responses */}
+                                                {log.custom_responses && log.custom_responses.length > 0 && (
+                                                    <div className="mt-2 text-xs border-t border-slate-700 pt-1 space-y-1">
+                                                        {log.custom_responses.map((resp, i) => (
+                                                            <div key={i} className="flex gap-2">
+                                                                <span className="text-slate-500">{resp.field_label}:</span>
+                                                                <span className="text-slate-300">{resp.response_value}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3 font-mono text-xs text-slate-600">
+
                                                 {log.anonymized_token || 'N/A'}
                                             </td>
                                         </tr>
@@ -451,6 +568,6 @@ export default function ClubDashboard() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </article>
+        </article >
     )
 }
