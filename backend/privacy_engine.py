@@ -13,17 +13,21 @@ HIGH_RISK_KEYWORDS = [
     "home address", "permanent address", "residential address",
     "phone", "mobile", "contact number", "whatsapp",
     "biometric", "fingerprint", "face id",
-    "student id", "roll number", "registration number", "ssn"
+    "student id", "roll number", "registration number", "ssn",
+    "salary", "income", "ctc", "tax", "pan card",
+    "health", "medical", "disease", "disability", "blood group",
+    "password", "pin", "secret", "cvv"
 ]
 
 MEDIUM_RISK_KEYWORDS = [
     "name", "full name", "first name", "last name",
     "email", "personal email", "gmail", "outlook",
-    "social media", "linkedin", "twitter", "x.com", "instagram", "facebook",
+    "social media", "linkedin", "twitter", "x.com", "instagram", "facebook", "discord", "telegram",
     "github", "gitlab", "portfolio", "website", "blog",
-    "workplace", "company", "internship",
+    "workplace", "company", "internship", "job",
     "dob", "date of birth", "birth date", "age",
-    "gender", "sex"
+    "gender", "sex", "caste", "religion",
+    "t-shirt", "size", "diet", "food", "preferences"
 ]
 
 def classify_field_risk(label: str) -> str:
