@@ -271,6 +271,12 @@ export default function AdminDashboard() {
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-3">
+                                            {event.event_description && (
+                                                <div className="text-sm text-slate-300 bg-slate-900/50 p-3 rounded-md border border-slate-800 mb-2">
+                                                    <p className="text-xs text-slate-500 mb-1 font-medium">Description</p>
+                                                    {event.event_description}
+                                                </div>
+                                            )}
                                             <div>
                                                 <p className="text-sm text-slate-400">Requested Attributes:</p>
                                                 <div className="flex flex-wrap gap-2 mt-1">
@@ -300,6 +306,18 @@ export default function AdminDashboard() {
                                                         : 'No expiry set'}
                                                 </span>
                                             </div>
+                                            {event.custom_fields && event.custom_fields.length > 0 && (
+                                                <div>
+                                                    <p className="text-sm text-slate-400">Custom Fields:</p>
+                                                    <div className="flex flex-wrap gap-2 mt-1">
+                                                        {event.custom_fields.map((field, i) => (
+                                                            <Badge key={i} variant="secondary" className="text-xs">
+                                                                {field.label} <span className="text-slate-500 ml-1">({field.field_type})</span>
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div className="flex gap-2 pt-2">
                                                 <Button
                                                     variant="green"
@@ -567,6 +585,16 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </div>
                                             )}
+                                            {event.custom_fields && event.custom_fields.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs text-slate-500 mb-1">Custom Fields</p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {event.custom_fields.map((field, i) => (
+                                                            <Badge key={i} variant="outline" className="text-xs">{field.label}</Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                             {event.admin_comment && (
                                                 <div className="rounded-md bg-slate-800/50 border border-slate-700 p-3">
                                                     <p className="text-xs text-slate-500 mb-1">Admin Comment</p>
@@ -578,7 +606,8 @@ export default function AdminDashboard() {
                                 </Card>
                             ))}
                         </div>
-                    )}
+                    )
+                    }
                 </>
             )}
 
@@ -756,6 +785,6 @@ export default function AdminDashboard() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </article>
+        </article >
     )
 }

@@ -460,7 +460,14 @@ export default function ClubDashboard() {
                                                 </div>
                                             </header>
                                             <p className="mt-2 text-xs text-slate-500">
-                                                Permissions Taken: {event.requested_attributes.join(', ')} <br /> Years: {event.allowed_years?.join(', ') || 'All'}
+                                                Permissions Taken: {event.requested_attributes.join(', ')} <br />
+                                                Years: {event.allowed_years?.join(', ') || 'All'}
+                                                {event.custom_fields && event.custom_fields.length > 0 && (
+                                                    <>
+                                                        <br />
+                                                        Custom Fields: {event.custom_fields.map(f => `${f.label} (${f.field_type})`).join(', ')}
+                                                    </>
+                                                )}
                                             </p>
                                             <div className="mt-2 flex items-center gap-1.5 text-xs">
                                                 <Clock className="h-3.5 w-3.5 text-slate-400" />

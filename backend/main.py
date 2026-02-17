@@ -97,6 +97,11 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     if db.query(models.User).filter(models.User.username == final_username).first():
         raise HTTPException(status_code=400, detail="Username already taken. Please choose another.")
 
+    # Validate Password
+    is_valid_pass, pass_error = utils.validate_password(user.password)
+    if not is_valid_pass:
+        raise HTTPException(status_code=400, detail=pass_error)
+
     hashed_password = auth.get_password_hash(user.password)
     new_user = models.User(
         username=final_username, 
