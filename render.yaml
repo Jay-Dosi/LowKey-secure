@@ -1,0 +1,26 @@
+services:
+  # Backend API Service
+  - type: web
+    name: lowkey-secure-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && python -m uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+    routes:
+      - path: /
+        destination: http://localhost:8000
+
+  # Frontend Service
+  - type: static
+    name: lowkey-secure-frontend
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      - path: /api/*
+        destination: lowkey-secure-backend:8000
