@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 
-import { Calendar, Users, RefreshCw, Plus, Activity, Loader2, CheckCircle, Shield, AlertTriangle, Trash2, Edit, X } from 'lucide-react'
+import { Calendar, Users, RefreshCw, Plus, Activity, Loader2, CheckCircle, Shield, AlertTriangle, Trash2, Edit, X, Clock } from 'lucide-react'
 import {
     Dialog,
     DialogContent,
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 
 const ATTRIBUTES = [
-    { id: 'major', label: 'Major', pii: false },
+    { id: 'branch', label: 'Branch', pii: false },
     { id: 'year', label: 'Year', pii: false },
     { id: 'email', label: 'Email', pii: true },
     { id: 'phone', label: 'Phone', pii: true },
@@ -41,6 +41,7 @@ export default function ClubDashboard() {
     const [selectedYears, setSelectedYears] = useState([])
     const [expiryDate, setExpiryDate] = useState('')
     const [riskPreview, setRiskPreview] = useState(null)
+    const [customFields, setCustomFields] = useState([]) // Array of { label, field_type, required, options }
 
     const fetchEvents = useCallback(async () => {
         try {
@@ -75,10 +76,18 @@ export default function ClubDashboard() {
 
     useEffect(() => {
         // Analyze risk in real-time
-        const mediumRiskAttrs = ['name', 'email']
-        const highRiskAttrs = ['phone', 'student_id', 'photo', 'ssn', 'address']
-        const hasHighRisk = selectedAttrs.some(attr => highRiskAttrs.includes(attr))
-        const hasMediumRisk = selectedAttrs.some(attr => mediumRiskAttrs.includes(attr))
+        const mediumRiskAttrs = ['name', 'email', 'social', 'github', 'linkedin', 'workplace', 'dob']
+        const highRiskAttrs = ['phone', 'student_id', 'photo', 'ssn', 'address', 'aadhaar', 'passport', 'bank']
+
+        let hasHighRisk = selectedAttrs.some(attr => highRiskAttrs.includes(attr))
+        let hasMediumRisk = selectedAttrs.some(attr => mediumRiskAttrs.includes(attr))
+
+        // Analyze Custom Fields
+        customFields.forEach(field => {
+            const labelLower = field.label.toLowerCase()
+            if (highRiskAttrs.some(k => labelLower.includes(k))) hasHighRisk = true
+            else if (mediumRiskAttrs.some(k => labelLower.includes(k))) hasMediumRisk = true
+        })
 
         if (hasHighRisk) {
             setRiskPreview('HIGH')
@@ -87,7 +96,7 @@ export default function ClubDashboard() {
         } else {
             setRiskPreview('LOW')
         }
-    }, [selectedAttrs])
+    }, [selectedAttrs, customFields])
 
     async function handleSubmit(e) {
         e.preventDefault()
@@ -98,10 +107,9 @@ export default function ClubDashboard() {
                 event_name: eventName,
                 event_description: eventDescription,
                 requested_attributes: selectedAttrs,
-                allowed_years: selectedYears
-            }
-            if (expiryDate) {
-                payload.expiry_date = expiryDate
+                allowed_years: selectedYears,
+                expiry_date: expiryDate,
+                custom_fields: customFields
             }
             await api.post('/club/events', payload)
             setEventName('')
@@ -109,6 +117,7 @@ export default function ClubDashboard() {
             setSelectedAttrs([])
             setSelectedYears([])
             setExpiryDate('')
+            setCustomFields([])
             fetchEvents()
         } catch (err) {
             alert('Error creating event: ' + (err.response?.data?.detail || err.message))
@@ -143,6 +152,20 @@ export default function ClubDashboard() {
                 ? prev.filter(y => y !== year)
                 : [...prev, year]
         )
+    }
+
+    function addCustomField() {
+        setCustomFields([...customFields, { label: '', field_type: 'short_text', required: false, options: [] }])
+    }
+
+    function updateCustomField(index, key, value) {
+        const updated = [...customFields]
+        updated[index][key] = value
+        setCustomFields(updated)
+    }
+
+    function removeCustomField(index) {
+        setCustomFields(customFields.filter((_, i) => i !== index))
     }
 
     return (
@@ -195,19 +218,20 @@ export default function ClubDashboard() {
                             </fieldset>
 
                             <fieldset className="space-y-2">
-                                <Label htmlFor="expiry-date">Event Expiry Date</Label>
+                                <Label htmlFor="expiry-date">Event Expiry Date <span className="text-red-400">*</span></Label>
                                 <div className="relative">
                                     <Input
                                         id="expiry-date"
                                         type="datetime-local"
                                         value={expiryDate}
                                         onChange={(e) => setExpiryDate(e.target.value)}
+                                        required
                                         min={(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`; })()}
                                         className="focus:ring-purple-500 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                                     />
                                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-400 pointer-events-none" />
                                 </div>
-                                <p className="text-xs text-slate-500">Event will be auto-deleted after this date</p>
+                                <p className="text-xs text-slate-500">Required — Event will be auto-deleted after this date</p>
                             </fieldset>
 
                             <fieldset className="space-y-3">
@@ -260,6 +284,85 @@ export default function ClubDashboard() {
                                 </ul>
                             </fieldset>
 
+                            <fieldset className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Label>Custom Data Requests</Label>
+                                    <Button type="button" variant="ghost" size="sm" onClick={addCustomField} className="h-6 text-xs text-purple-400">
+                                        <Plus className="mr-1 h-3 w-3" /> Add Field
+                                    </Button>
+                                </div>
+                                {customFields.length > 0 && (
+                                    <div className="space-y-3">
+                                        {customFields.map((field, index) => (
+                                            <div key={index} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 relative group">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => removeCustomField(index)}
+                                                    className="absolute top-2 right-2 h-6 w-6 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </Button>
+                                                <div className="grid gap-3">
+                                                    <div>
+                                                        <Label htmlFor={`cf-label-${index}`} className="text-xs text-slate-400">Field Label</Label>
+                                                        <Input
+                                                            id={`cf-label-${index}`}
+                                                            value={field.label}
+                                                            onChange={(e) => updateCustomField(index, 'label', e.target.value)}
+                                                            placeholder="e.g. T-Shirt Size"
+                                                            className="h-8 text-sm"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <div className="flex-1">
+                                                            <Label htmlFor={`cf-type-${index}`} className="text-xs text-slate-400">Type</Label>
+                                                            <select
+                                                                id={`cf-type-${index}`}
+                                                                value={field.field_type}
+                                                                onChange={(e) => updateCustomField(index, 'field_type', e.target.value)}
+                                                                className="w-full h-8 rounded-md border border-slate-800 bg-slate-900 px-3 py-1 text-sm text-slate-300 focus:outline-none focus:ring-1 focus:ring-purple-500 [&>option]:bg-slate-900 [&>option]:text-slate-300"
+                                                            >
+                                                                <option value="short_text">Short Text</option>
+                                                                <option value="long_text">Long Text</option>
+                                                                <option value="number">Number</option>
+                                                                <option value="dropdown">Dropdown</option>
+                                                                <option value="checkbox">Checkbox</option>
+                                                                <option value="date">Date</option>
+                                                                <option value="url">URL</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="flex items-end pb-1">
+                                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                                <Checkbox
+                                                                    checked={field.required}
+                                                                    onCheckedChange={(checked) => updateCustomField(index, 'required', checked)}
+                                                                />
+                                                                <span className="text-xs text-slate-300">Required</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    {(field.field_type === 'dropdown' || field.field_type === 'checkbox') && (
+                                                        <div>
+                                                            <Label htmlFor={`cf-options-${index}`} className="text-xs text-slate-400">Options (comma separated)</Label>
+                                                            <Input
+                                                                id={`cf-options-${index}`}
+                                                                value={Array.isArray(field.options) ? field.options.join(', ') : ''}
+                                                                onChange={(e) => updateCustomField(index, 'options', e.target.value.split(',').map(s => s.trim()))}
+                                                                placeholder="Option 1, Option 2"
+                                                                className="h-8 text-sm"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </fieldset>
+
                             {riskPreview && (
                                 <div className={cn(
                                     "rounded-lg p-3 flex items-center gap-2",
@@ -290,7 +393,7 @@ export default function ClubDashboard() {
                                 type="submit"
                                 variant="purple"
                                 className="w-full"
-                                disabled={loading || selectedAttrs.length === 0}
+                                disabled={loading || selectedAttrs.length === 0 || !expiryDate}
                             >
                                 {loading ? (
                                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -357,8 +460,23 @@ export default function ClubDashboard() {
                                                 </div>
                                             </header>
                                             <p className="mt-2 text-xs text-slate-500">
-                                                Permissions Taken: {event.requested_attributes.join(', ')} <br /> Years: {event.allowed_years?.join(', ') || 'All'}
+                                                Permissions Taken: {event.requested_attributes.join(', ')} <br />
+                                                Years: {event.allowed_years?.join(', ') || 'All'}
+                                                {event.custom_fields && event.custom_fields.length > 0 && (
+                                                    <>
+                                                        <br />
+                                                        Custom Fields: {event.custom_fields.map(f => `${f.label} (${f.field_type})`).join(', ')}
+                                                    </>
+                                                )}
                                             </p>
+                                            <div className="mt-2 flex items-center gap-1.5 text-xs">
+                                                <Clock className="h-3.5 w-3.5 text-slate-400" />
+                                                <span className={event.expiry_date && new Date(event.expiry_date) < new Date() ? 'text-red-400 font-medium' : 'text-slate-400'}>
+                                                    {event.expiry_date
+                                                        ? `${new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: ${new Date(event.expiry_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                                                        : 'No expiry set'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </li>
                                 ))
@@ -414,7 +532,8 @@ export default function ClubDashboard() {
                                             <td className="px-4 py-3 text-slate-300">
                                                 {log.user ? (
                                                     <div className="space-y-1">
-                                                        <div className="font-semibold text-white">{log.user.name || 'Unknown'}</div>
+                                                        {log.user.name && <div className="font-semibold text-white">{log.user.name}</div>}
+                                                        {log.user.username && <div className="text-xs text-slate-400 font-mono">ID: {log.user.username}</div>}
                                                         {log.user.email && <div className="text-xs text-slate-400">{log.user.email}</div>}
                                                         {log.user.phone && <div className="text-xs text-slate-400">{log.user.phone}</div>}
                                                         {log.user.year && <Badge variant="outline" className="text-[10px] mr-1">Year {log.user.year}</Badge>}
@@ -424,6 +543,7 @@ export default function ClubDashboard() {
                                                     <span className="italic text-slate-500">Anonymous Student</span>
                                                 )}
                                             </td>
+
                                             <td className="px-4 py-3 font-mono text-slate-400">
                                                 {/* 24-hour format with real-time date */}
                                                 {new Date(log.timestamp).toLocaleString('en-IN', {
@@ -431,8 +551,20 @@ export default function ClubDashboard() {
                                                     day: '2-digit', month: 'short', year: 'numeric',
                                                     hour: '2-digit', minute: '2-digit', hour12: false
                                                 })}
+                                                {/* Custom Responses */}
+                                                {log.custom_responses && log.custom_responses.length > 0 && (
+                                                    <div className="mt-2 text-xs border-t border-slate-700 pt-1 space-y-1">
+                                                        {log.custom_responses.map((resp, i) => (
+                                                            <div key={i} className="flex gap-2">
+                                                                <span className="text-slate-500">{resp.field_label}:</span>
+                                                                <span className="text-slate-300">{resp.response_value}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3 font-mono text-xs text-slate-600">
+
                                                 {log.anonymized_token || 'N/A'}
                                             </td>
                                         </tr>
@@ -443,6 +575,6 @@ export default function ClubDashboard() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </article>
+        </article >
     )
 }

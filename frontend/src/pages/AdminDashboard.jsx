@@ -260,11 +260,23 @@ export default function AdminDashboard() {
                                                 <CardDescription className="mt-2">
                                                     {event.risk_message}
                                                 </CardDescription>
+                                                {event.club_name && (
+                                                    <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-400">
+                                                        <Building2 className="h-3.5 w-3.5" />
+                                                        <span>Requested by <span className="text-slate-300 font-medium">{event.club_name}</span></span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-3">
+                                            {event.event_description && (
+                                                <div className="text-sm text-slate-300 bg-slate-900/50 p-3 rounded-md border border-slate-800 mb-2">
+                                                    <p className="text-xs text-slate-500 mb-1 font-medium">Description</p>
+                                                    {event.event_description}
+                                                </div>
+                                            )}
                                             <div>
                                                 <p className="text-sm text-slate-400">Requested Attributes:</p>
                                                 <div className="flex flex-wrap gap-2 mt-1">
@@ -285,13 +297,25 @@ export default function AdminDashboard() {
                                                     )}
                                                 </div>
                                             </div>
-                                            {event.expiry_date && (
-                                                <div className="flex items-center gap-2 text-sm">
-                                                    <Clock className="h-4 w-4 text-slate-400" />
-                                                    <span className="text-slate-400">Expires:</span>
-                                                    <span className={`font-medium ${new Date(event.expiry_date) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
-                                                        {new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                    </span>
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <Clock className="h-4 w-4 text-slate-400" />
+                                                <span className="text-slate-400">Expires:</span>
+                                                <span className={`font-medium ${event.expiry_date && new Date(event.expiry_date) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
+                                                    {event.expiry_date
+                                                        ? new Date(event.expiry_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                        : 'No expiry set'}
+                                                </span>
+                                            </div>
+                                            {event.custom_fields && event.custom_fields.length > 0 && (
+                                                <div>
+                                                    <p className="text-sm text-slate-400">Custom Fields:</p>
+                                                    <div className="flex flex-wrap gap-2 mt-1">
+                                                        {event.custom_fields.map((field, i) => (
+                                                            <Badge key={i} variant="secondary" className="text-xs">
+                                                                {field.label} <span className="text-slate-500 ml-1">({field.field_type})</span>
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
                                             <div className="flex gap-2 pt-2">
@@ -520,6 +544,12 @@ export default function AdminDashboard() {
                                                 {event.event_description && (
                                                     <CardDescription className="mt-1">{event.event_description}</CardDescription>
                                                 )}
+                                                {event.club_name && (
+                                                    <div className="flex items-center gap-1.5 mt-1.5 text-xs text-slate-400">
+                                                        <Building2 className="h-3.5 w-3.5" />
+                                                        <span>By <span className="text-slate-300 font-medium">{event.club_name}</span></span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </CardHeader>
@@ -528,14 +558,14 @@ export default function AdminDashboard() {
                                             <div className="flex flex-wrap gap-4 text-sm text-slate-400">
                                                 <div className="flex items-center gap-1.5">
                                                     <Clock className="h-3.5 w-3.5" />
-                                                    Created: {new Date(event.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    Created: {new Date(event.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })}
                                                 </div>
-                                                {event.expiry_date && (
-                                                    <div className={`flex items-center gap-1.5 ${new Date(event.expiry_date) < new Date() ? 'text-red-400' : ''}`}>
-                                                        <CalendarX2 className="h-3.5 w-3.5" />
-                                                        {new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: {new Date(event.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                    </div>
-                                                )}
+                                                <div className={`flex items-center gap-1.5 ${event.expiry_date && new Date(event.expiry_date) < new Date() ? 'text-red-400' : ''}`}>
+                                                    <CalendarX2 className="h-3.5 w-3.5" />
+                                                    {event.expiry_date
+                                                        ? `${new Date(event.expiry_date) < new Date() ? 'Expired' : 'Expires'}: ${new Date(event.expiry_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })}`
+                                                        : 'No expiry set'}
+                                                </div>
                                             </div>
                                             <div>
                                                 <p className="text-xs text-slate-500 mb-1">Requested Attributes</p>
@@ -555,6 +585,16 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </div>
                                             )}
+                                            {event.custom_fields && event.custom_fields.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs text-slate-500 mb-1">Custom Fields</p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {event.custom_fields.map((field, i) => (
+                                                            <Badge key={i} variant="outline" className="text-xs">{field.label}</Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                             {event.admin_comment && (
                                                 <div className="rounded-md bg-slate-800/50 border border-slate-700 p-3">
                                                     <p className="text-xs text-slate-500 mb-1">Admin Comment</p>
@@ -566,7 +606,8 @@ export default function AdminDashboard() {
                                 </Card>
                             ))}
                         </div>
-                    )}
+                    )
+                    }
                 </>
             )}
 
@@ -744,6 +785,6 @@ export default function AdminDashboard() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </article>
+        </article >
     )
 }

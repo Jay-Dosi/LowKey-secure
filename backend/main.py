@@ -1,9 +1,14 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
-import models, schemas, database, auth, utils, username_gen
+from datetime import datetime, timedelta
+import models, schemas, database, auth, utils, username_gen, privacy_engine
+import privacy_analytics, ai_advisor
+from models import get_ist_now
 import re
 
 models.Base.metadata.create_all(bind=database.engine)
@@ -20,7 +25,7 @@ app.add_middleware(
 
 def cleanup_expired_events(db: Session):
     """Delete events that have passed their expiry date"""
-    now = datetime.utcnow()
+    now = get_ist_now()
     expired = db.query(models.AccessRequest).filter(
         models.AccessRequest.expiry_date != None,
         models.AccessRequest.expiry_date < now
@@ -92,6 +97,11 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     if db.query(models.User).filter(models.User.username == final_username).first():
         raise HTTPException(status_code=400, detail="Username already taken. Please choose another.")
 
+    # Validate Password
+    is_valid_pass, pass_error = utils.validate_password(user.password)
+    if not is_valid_pass:
+        raise HTTPException(status_code=400, detail=pass_error)
+
     hashed_password = auth.get_password_hash(user.password)
     new_user = models.User(
         username=final_username, 
@@ -106,7 +116,8 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    access_token = auth.create_access_token(data={"sub": new_user.username, "role": new_user.role, "id": new_user.id})
+    token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(data={"sub": new_user.username, "role": new_user.role, "id": new_user.id}, expires_delta=token_expires)
     return {"access_token": access_token, "token_type": "bearer", "role": new_user.role, "user_id": new_user.id, "username": new_user.username}
 
 @app.post("/auth/login", response_model=schemas.Token)
@@ -116,7 +127,8 @@ def login(user: schemas.UserLogin, db: Session = Depends(database.get_db)):
         raise HTTPException(status_code=404, detail="User not found. Please register first.")
     if not auth.verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect password")
-    access_token = auth.create_access_token(data={"sub": db_user.username, "role": db_user.role, "id": db_user.id})
+    token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(data={"sub": db_user.username, "role": db_user.role, "id": db_user.id}, expires_delta=token_expires)
     return {"access_token": access_token, "token_type": "bearer", "role": db_user.role, "user_id": db_user.id, "username": db_user.username}
 
 
@@ -330,7 +342,10 @@ def create_event(
     if current_user.role != 'club':
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    risk_level, risk_message = utils.analyze_privacy_risk(request.requested_attributes)
+    # risk_level, risk_message = utils.analyze_privacy_risk(request.requested_attributes)
+    # Use new centralized Privacy Engine
+    custom_field_dicts = [{"label": f.label} for f in request.custom_fields]
+    risk_level, risk_message = privacy_engine.calculate_aggregate_risk(request.requested_attributes, custom_field_dicts)
     
     new_event = models.AccessRequest(
         club_id=current_user.id,
@@ -344,6 +359,25 @@ def create_event(
         expiry_date=request.expiry_date
     )
     db.add(new_event)
+    db.commit()
+    db.refresh(new_event)
+    
+    # Save Custom Fields
+    for field in request.custom_fields:
+        normalized = field.label.lower().strip()
+        f_risk = privacy_engine.classify_field_risk(field.label)
+        
+        new_field = models.EventCustomField(
+            event_id=new_event.id,
+            label=field.label,
+            normalized_label=normalized,
+            field_type=field.field_type,
+            required=field.required,
+            options=field.options,
+            risk_level=f_risk
+        )
+        db.add(new_field)
+    
     db.commit()
     db.refresh(new_event)
     
@@ -373,10 +407,36 @@ def update_event(
         event.allowed_years = update_data.allowed_years
     if update_data.requested_attributes is not None:
         event.requested_attributes = update_data.requested_attributes
-        # Re-analyze risk
-        risk_level, risk_message = utils.analyze_privacy_risk(event.requested_attributes)
-        event.risk_level = risk_level
-        event.risk_message = risk_message
+        event.requested_attributes = update_data.requested_attributes
+    
+    # Update Custom Fields if provided
+    if update_data.custom_fields is not None:
+        # Delete existing (simplest way to handle updates for now)
+        db.query(models.EventCustomField).filter(models.EventCustomField.event_id == event.id).delete()
+        
+        # Add new ones
+        for field in update_data.custom_fields:
+            normalized = field.label.lower().strip()
+            f_risk = privacy_engine.classify_field_risk(field.label)
+            new_field = models.EventCustomField(
+                event_id=event.id,
+                label=field.label,
+                normalized_label=normalized,
+                field_type=field.field_type,
+                required=field.required,
+                options=field.options,
+                risk_level=f_risk
+            )
+            db.add(new_field)
+            
+    # Re-analyze risk
+    # Need to fetch custom fields again if not in session, or use input
+    current_custom_fields = db.query(models.EventCustomField).filter(models.EventCustomField.event_id == event.id).all()
+    custom_field_dicts = [{"label": f.label} for f in current_custom_fields]
+    
+    risk_level, risk_message = privacy_engine.calculate_aggregate_risk(event.requested_attributes, custom_field_dicts)
+    event.risk_level = risk_level
+    event.risk_message = risk_message
     
     # Any edit resets to PENDING
     event.status = "PENDING"
@@ -426,6 +486,12 @@ def get_event_logs(
         
     logs = db.query(models.AccessLog).filter(models.AccessLog.request_id == request_id).order_by(models.AccessLog.timestamp.desc()).all()
     
+
+    # Mapping from frontend attribute names to actual User model field names
+    ATTR_FIELD_MAP = {
+        "student_id": "username",
+    }
+
     # Populate PII if consented
     results = []
     for log in logs:
@@ -439,10 +505,32 @@ def get_event_logs(
                  user_data = {}
                  # Only reveal consented attributes
                  for attr in log.consented_attrs:
-                     if hasattr(user, attr):
-                         user_data[attr] = getattr(user, attr)
+                     model_field = ATTR_FIELD_MAP.get(attr, attr)
+                     if hasattr(user, model_field):
+                         user_data[model_field] = getattr(user, model_field)
                  log_out.user = user_data
         
+        # Fetch Custom Responses
+        if log.user_id:
+            custom_responses = db.query(models.StudentCustomFieldResponse).filter(
+                models.StudentCustomFieldResponse.event_id == request_id,
+                models.StudentCustomFieldResponse.student_id == log.user_id
+            ).all()
+            
+            # Enrich with field label
+            enriched_responses = []
+            for resp in custom_responses:
+                # We need to fetch the field label. Ideally join.
+                # Since simple loop:
+                field_def = db.query(models.EventCustomField).filter(models.EventCustomField.id == resp.field_id).first()
+                if field_def:
+                    enriched_responses.append({
+                        "field_id": resp.field_id,
+                        "field_label": field_def.label,
+                        "response_value": resp.response_value
+                    })
+            log_out.custom_responses = enriched_responses
+
         results.append(log_out)
         
     return results
@@ -553,6 +641,7 @@ def get_event_details(
 @app.post("/student/events/{request_id}/consent")
 def consent_to_event(
     request_id: int,
+    consent_data: schemas.ConsentRequest, # NEW BODY
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
@@ -572,10 +661,39 @@ def consent_to_event(
     if event.status != 'APPROVED':
         raise HTTPException(status_code=400, detail="Event is not approved yet")
     
+    # Check if event has expired
+    if event.expiry_date and event.expiry_date < get_ist_now():
+        raise HTTPException(status_code=400, detail="This event has expired and is no longer accepting registrations.")
+    
     # Check if student's year is allowed
     if event.allowed_years and len(event.allowed_years) > 0:
         if current_user.year not in event.allowed_years:
             raise HTTPException(status_code=403, detail="You are not eligible for this event")
+    
+    # Validate Required Custom Fields (always run, even if no responses submitted)
+    event_fields = db.query(models.EventCustomField).filter(models.EventCustomField.event_id == request_id).all()
+    required_fields = {f.id: f for f in event_fields if f.required}
+    submitted_responses = {r.field_id: r.response_value for r in consent_data.custom_responses}
+    
+    for field_id, field_def in required_fields.items():
+        value = submitted_responses.get(field_id, None)
+        if value is None or str(value).strip() == '':
+            raise HTTPException(status_code=400, detail=f"Field '{field_def.label}' is required.")
+    
+    # Save Custom Responses
+    for resp in consent_data.custom_responses:
+        # Validate: check if field belongs to event
+        field = db.query(models.EventCustomField).filter(models.EventCustomField.id == resp.field_id).first()
+        if not field or field.event_id != request_id:
+            raise HTTPException(status_code=400, detail=f"Invalid field ID: {resp.field_id}")
+        
+        new_response = models.StudentCustomFieldResponse(
+            event_id=request_id,
+            student_id=current_user.id,
+            field_id=resp.field_id,
+            response_value=resp.response_value
+        )
+        db.add(new_response)
     
     # **DEDUPLICATION CHECK** - Prevent multiple registrations
     existing_log = db.query(models.AccessLog).filter(
@@ -593,8 +711,7 @@ def consent_to_event(
     
     # Create anonymized token (hash of user_id + timestamp + event_id)
     import hashlib
-    from datetime import datetime
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = get_ist_now().isoformat()
     token_string = f"{current_user.id}:{request_id}:{timestamp}"
     anonymized_token = hashlib.sha256(token_string.encode()).hexdigest()[:16]
     
@@ -613,3 +730,75 @@ def consent_to_event(
     db.commit()
     
     return {"status": "success", "message": "Access granted", "token": anonymized_token}
+
+
+# ── Student Privacy Report ─────────────────────────────────────────────
+
+@app.get("/student/privacy-report", response_model=schemas.PrivacyReportOut)
+def get_privacy_report(
+    month: str = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """
+    Generate a monthly privacy risk report for the authenticated student.
+
+    Query Parameters
+    ----------------
+    month : str, optional
+        Target month in ``YYYY-MM`` format.  Defaults to the current month.
+
+    Returns
+    -------
+    PrivacyReportOut
+        ``{metrics, rule_analysis, ai_summary}``
+    """
+    if current_user.role != "student":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can access privacy reports.",
+        )
+
+    # Default to current month if not provided
+    if not month:
+        month = get_ist_now().strftime("%Y-%m")
+
+    # Validate format
+    try:
+        datetime.strptime(month, "%Y-%m")
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid month format. Use YYYY-MM (e.g. 2026-02).",
+        )
+
+    # 1. Compute / refresh metrics (idempotent)
+    metrics = privacy_analytics.compute_monthly_metrics(
+        student_id=current_user.id,
+        month=month,
+        db=db,
+    )
+
+    # 2. Rule-based advisory
+    rule_analysis = privacy_analytics.generate_rule_based_advice(metrics)
+
+    # 3. AI summary (aggregated metrics only — no PII)
+    metrics_dict = {
+        "month": metrics.month,
+        "total_events": metrics.total_events,
+        "high_risk_count": metrics.high_risk_count,
+        "medium_risk_count": metrics.medium_risk_count,
+        "low_risk_count": metrics.low_risk_count,
+        "unique_org_count": metrics.unique_org_count,
+        "repeated_high_attr_count": metrics.repeated_high_attr_count,
+        "cumulative_risk_score": metrics.cumulative_risk_score,
+        "exposure_entropy_score": metrics.exposure_entropy_score,
+        "risk_velocity": metrics.risk_velocity,
+    }
+    ai_summary = ai_advisor.generate_ai_summary(metrics_dict)
+
+    return schemas.PrivacyReportOut(
+        metrics=schemas.PrivacyMetricsOut(**metrics_dict),
+        rule_analysis=schemas.RuleAnalysis(**rule_analysis),
+        ai_summary=ai_summary,
+    )

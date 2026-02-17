@@ -5,10 +5,11 @@ import AdminDashboard from './pages/AdminDashboard'
 import ClubDashboard from './pages/ClubDashboard'
 import StudentDashboard from './pages/StudentDashboard'
 import RequestDetails from './pages/RequestDetails'
+import PrivacyReport from './pages/PrivacyReport'
 import ProfileDialog from '@/components/ProfileDialog'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
-import { ShieldCheck, LogOut, Loader2 } from 'lucide-react'
+import { LogOut, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import {
   Dialog,
@@ -58,7 +59,7 @@ function AppContent() {
       <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
         <nav className="container mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2">
-            <ShieldCheck className="h-7 w-7 text-green-400" aria-hidden="true" />
+            <img src="/log.png" alt="LowKey Secure" className="h-10 w-12" />
             <span className="text-lg font-bold tracking-tight">
               LOWKEY<span className="text-green-400">SECURE</span>
             </span>
@@ -99,6 +100,7 @@ function AppContent() {
           <Route path="/club" element={<PrivateRoute allowedRoles={['club']}><ClubDashboard /></PrivateRoute>} />
           <Route path="/student" element={<PrivateRoute allowedRoles={['student']}><StudentDashboard /></PrivateRoute>} />
           <Route path="/student/request/:id" element={<PrivateRoute allowedRoles={['student']}><RequestDetails /></PrivateRoute>} />
+          <Route path="/student/privacy-report" element={<PrivateRoute allowedRoles={['student']}><PrivacyReport /></PrivateRoute>} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </main>
