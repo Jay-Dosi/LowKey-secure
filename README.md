@@ -166,6 +166,8 @@ LowKey-secure/
 │   ├── auth.py              # JWT auth, bcrypt, token creation
 │   ├── utils.py             # RSA signing, phone/email validation
 │   ├── privacy_engine.py    # Centralized risk classification engine
+│   ├── privacy_analytics.py # Digital Hygiene metrics logic
+│   ├── ai_advisor.py        # AI summary generation (Zero PII)
 │   ├── username_gen.py      # Random username generator
 │   ├── database.py          # SQLite engine & session
 │   ├── migrate_db.py        # Database migration script
@@ -254,6 +256,7 @@ LowKey-secure/
 | `user_audits`                    | User modification tracking                         |
 | `event_custom_fields`            | Dynamic form fields per event                      |
 | `student_custom_field_responses` | Student answers to custom fields                   |
+| `student_privacy_metrics`        | **New: Aggregated monthly exposure stats**         |
 
 ---
 
@@ -275,6 +278,23 @@ LowKey-secure/
 - Access logs use SHA-256 hashed tokens (`user_id + event_id + timestamp`)
 - Deduplication check prevents multiple registrations per student per event
 - Expired events are automatically purged on server startup
+
+---
+
+## 📊 Digital Hygiene Dashboard
+
+A dedicated privacy dashboard for students to monitor their data exposure footprint. This feature shifts the focus from "access" to "behavioral privacy."
+
+### Key Metrics
+1.  **Exposure Score**: A cumulative weighted score calculated from all attended events.
+    *   Formula: `(High_Risk_Count * 6) + (Medium_Risk_Count * 3) + (Low_Risk_Count * 1)`
+2.  **Entropy Score**: Measures how widely your data is spread across different organisations. High entropy means your data is fragmented across many clubs (higher breach risk).
+3.  **Risk Velocity**: Tracks the *rate of change* in your risk exposure compared to the previous month. A spike (e.g., +15 points) triggers an alert.
+
+### 🤖 AI Privacy Advisor
+The dashboard includes an AI-generated summary that provides actionable advice (e.g., *"Your risk exposure doubled this month due to 3 high-risk hackathons. Consider using a burner email."*).
+
+> **Privacy Guarantee**: The AI model (Llama-3 via Groq) receives **ONLY aggregated integers** (e.g., "High Risk Count: 5"). **No raw PII, names, or event titles are ever sent to the AI.**
 
 ---
 
