@@ -17,7 +17,7 @@ app = FastAPI(title="Lowkey Secure API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://lowkey-secure-frontend.onrender.com"],
+    allow_origins=["https://lowkey-secure-frontend.onrender.com", "https://lowkey-secure-noe9.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
