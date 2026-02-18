@@ -13,7 +13,7 @@ HIGH_RISK_KEYWORDS = [
     "home address", "permanent address", "residential address",
     "phone", "mobile", "contact number", "whatsapp",
     "biometric", "fingerprint", "face id",
-    "student id", "roll number", "registration number", "ssn",
+    "student id", "roll number", "registration number", "ssn","student_id",
     "salary", "income", "ctc", "tax", "pan card",
     "health", "medical", "disease", "disability", "blood group",
     "password", "pin", "secret", "cvv"

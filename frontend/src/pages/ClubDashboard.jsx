@@ -459,6 +459,11 @@ export default function ClubDashboard() {
                                                     </Button>
                                                 </div>
                                             </header>
+                                            {event.event_description && (
+                                                <p className="mt-2 text-sm text-slate-400 leading-relaxed whitespace-pre-line">
+                                                    {event.event_description}
+                                                </p>
+                                            )}
                                             <p className="mt-2 text-xs text-slate-500">
                                                 Permissions Taken: {event.requested_attributes.join(', ')} <br />
                                                 Years: {event.allowed_years?.join(', ') || 'All'}

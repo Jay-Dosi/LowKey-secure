@@ -209,8 +209,8 @@ const StudentDashboard = () => {
 
                                                 {/* Risk message */}
                                                 <div className={`rounded-lg p-3 text-sm ${event.risk_level === 'HIGH' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                                                        event.risk_level === 'MEDIUM' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                                            'bg-green-500/10 text-green-400 border border-green-500/20'
+                                                    event.risk_level === 'MEDIUM' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                                        'bg-green-500/10 text-green-400 border border-green-500/20'
                                                     }`}>
                                                     {event.risk_message}
                                                 </div>
@@ -345,6 +345,14 @@ const StudentDashboard = () => {
                                         <CardDescription>{event.risk_message}</CardDescription>
                                     </CardHeader>
 
+                                    {event.event_description && (
+                                        <div className="px-6 pb-2">
+                                            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                                                {event.event_description}
+                                            </p>
+                                        </div>
+                                    )}
+
                                     <CardContent className="space-y-4">
                                         <div>
                                             <p className="text-sm text-slate-400">Requested Attributes:</p>
@@ -410,6 +418,13 @@ const StudentDashboard = () => {
                             {selectedEvent?.event_name}
                         </DialogDescription>
                     </DialogHeader>
+                    {selectedEvent?.event_description && (
+                        <div className="rounded-lg border border-slate-700/50 bg-slate-800/30 p-4">
+                            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                                {selectedEvent.event_description}
+                            </p>
+                        </div>
+                    )}
                     <div className="space-y-4">
                         <div className={`rounded-lg p-4 ${selectedEvent?.risk_level === 'HIGH' ? 'bg-red-500/10' :
                             selectedEvent?.risk_level === 'MEDIUM' ? 'bg-amber-500/10' :
