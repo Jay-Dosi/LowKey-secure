@@ -9,6 +9,11 @@
 
 ---
 
+🚀 **LowKey Secure is now live!**
+
+🔗 **Visit here:**  
+👉 [LowKey Secure](https://lowkey-secure-noe9.onrender.com/)
+
 ## 📖 Overview
 
 LowKey Secure enables students to prove eligibility for campus events **without exposing sensitive PII unless they explicitly consent**. The platform implements a three-tier workflow:
@@ -305,3 +310,4 @@ The dashboard includes an AI-generated summary that provides actionable advice (
 - **Timezone**: IST (Asia/Kolkata, UTC+5:30) — timestamps stored as naive IST
 - **Notifications**: Simulated via server console logs
 - **Token Expiry**: JWT tokens valid for 24 hours
+
